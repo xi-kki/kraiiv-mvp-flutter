@@ -1,0 +1,242 @@
+[
+  {
+    "id": "1",
+    "name": "Jollof Rice and Chicken",
+    "category": "rice_based",
+    "feedback_template": "Your jollof rice and chicken was tasty! 🍚 This meal gives you good energy from carbs and protein from the chicken. The tomato base is rich in lycopene — a powerful antioxidant. Next time, try adding steamed vegetables or a side salad for extra fibre and vitamins.",
+    "health_score": 7,
+    "keywords": ["jollof", "jollof rice", "rice and chicken", "jollof chicken"]
+  },
+  {
+    "id": "2",
+    "name": "Eba and Egusi Soup",
+    "category": "soups_and_swallows",
+    "feedback_template": "Nice one! Egusi is packed with healthy fats and protein from melon seeds. 💪 To balance the heavy carbs in eba, try a smaller portion of eba next time and add more dark leafy greens to the soup. The iron in the vegetables helps your body absorb nutrients better.",
+    "health_score": 8,
+    "keywords": ["eba", "egusi", "garri", "egusi soup", "eba and egusi"]
+  },
+  {
+    "id": "3",
+    "name": "Moi Moi and Plantain",
+    "category": "beans_based",
+    "feedback_template": "You're doing well! Moi moi is an excellent source of plant protein and fibre. 🌱 Paired with plantain, you get good energy and potassium. If the plantain was fried, try boiling or roasting it next time for a lighter meal. Great combo!",
+    "health_score": 9,
+    "keywords": ["moi moi", "moimoi", "plantain", "dodo", "moi moi and plantain"]
+  },
+  {
+    "id": "4",
+    "name": "Beans and Fried Plantain",
+    "category": "beans_based",
+    "feedback_template": "Great choice! Beans give you lasting energy and fibre — they're one of the best plant protein sources out there. 🫘 The fried plantain adds nice flavour, but boiling or roasting it could make this a clean 10/10. Try adding a sprinkle of onions and tomatoes on the side!",
+    "health_score": 8,
+    "keywords": ["beans", "ewa", "beans and plantain", "fried plantain", "beans and dodo"]
+  },
+  {
+    "id": "5",
+    "name": "Ugwu Soup and Fufu",
+    "category": "soups_and_swallows",
+    "feedback_template": "Awesome! Ugwu leaves are a powerhouse of iron and vitamins A & C. 🥬 This is a wonderfully nourishing meal that supports your energy and immune system. Fufu gives sustained energy. Consider adding a protein source like fish or chicken to make it a complete meal.",
+    "health_score": 9,
+    "keywords": ["ugwu", "fufu", "vegetable", "edikaikong", "ugwu soup"]
+  },
+  {
+    "id": "6",
+    "name": "Suya",
+    "category": "snacks",
+    "feedback_template": "Suya is a fantastic high-protein snack — the spice blend (yaji) contains ginger and pepper which have anti-inflammatory properties. 🔥 Just remember to pair it with some cabbage, tomatoes, and onions to balance the spice and add fresh vitamins. A squeeze of lemon goes a long way!",
+    "health_score": 6,
+    "keywords": ["suya", "meat", "beef", "suya meat"]
+  },
+  {
+    "id": "7",
+    "name": "Amala and Ewedu Soup",
+    "category": "soups_and_swallows",
+    "feedback_template": "A Yoruba classic! Ewedu is loaded with vitamins A, C, and E plus iron and calcium. 💚 Amala from yam flour provides good carbs. To boost this meal, add more protein with stewed chicken or fish. The combination of ewedu and gbegiri is a nutrient powerhouse!",
+    "health_score": 8,
+    "keywords": ["amala", "ewedu", "gbegiri", "amala and ewedu"]
+  },
+  {
+    "id": "8",
+    "name": "Pounded Yam and Ogbono Soup",
+    "category": "soups_and_swallows",
+    "feedback_template": "Ogbono (wild mango) soup is rich in healthy fats and helps lower cholesterol. 🥣 Pounded yam is filling and energising. For a more balanced meal, try adding more vegetables to the soup and reducing the yam portion slightly. Great cultural food!",
+    "health_score": 7,
+    "keywords": ["pounded yam", "ogbono", "pounded yam and ogbono", "draw soup"]
+  },
+  {
+    "id": "9",
+    "name": "Noodles (Indomie)",
+    "category": "snacks",
+    "feedback_template": "We get it — Indomie hits different! 🍜 It's quick and tasty, but it's high in sodium and refined carbs. To make it healthier, crack an egg into it, add some sliced cabbage, carrots, or spinach. Skip the seasoning packet and use half — you'll cut sodium by 50%.",
+    "health_score": 4,
+    "keywords": ["noodles", "indomie", "instant noodles", "noodle", "mi"]
+  },
+  {
+    "id": "10",
+    "name": "Pepper Soup",
+    "category": "soups_and_swallows",
+    "feedback_template": "Pepper soup is light, warming, and great for hydration! 🌶️ The spices like uziza, ehuru, and ogiri have traditional medicinal benefits. If it's goat meat pepper soup, you're getting lean protein. Pair with a small portion of rice or yam for a complete meal. Well done!",
+    "health_score": 8,
+    "keywords": ["pepper soup", "peppersoup", "goat meat pepper soup", "catfish pepper soup"]
+  },
+  {
+    "id": "11",
+    "name": "Fried Rice",
+    "category": "rice_based",
+    "feedback_template": "Fried rice is tasty and versatile! 🍳 The mixed vegetables add vitamins and fibre. However, the oil used in frying can pile up calories. Try stir-frying with less oil, and add more vegetables than rice. Chicken or shrimp protein on top makes it a well-rounded meal.",
+    "health_score": 6,
+    "keywords": ["fried rice", "nigerian fried rice"]
+  },
+  {
+    "id": "12",
+    "name": "Yam and Egg Sauce",
+    "category": "rice_based",
+    "feedback_template": "Yam is a great source of complex carbs and potassium! 🍠 The eggs add quality protein. To level up, add tomatoes, peppers, and onions to the sauce for extra vitamins. Boiling the yam instead of frying saves calories while keeping all the nutrients.",
+    "health_score": 8,
+    "keywords": ["yam", "egg", "yam and egg", "boiled yam", "yam and egg sauce"]
+  },
+  {
+    "id": "13",
+    "name": "Bread and Tea",
+    "category": "snacks",
+    "feedback_template": "A Nigerian breakfast staple! 🍞 If you're using whole wheat bread, that's great fibre. The tea (especially if it's milo or hot chocolate) adds some energy. Try adding boiled eggs or akara for protein — it'll keep you fuller longer and prevent that mid-morning crash.",
+    "health_score": 5,
+    "keywords": ["bread", "bread and tea", "bread and milk", "toast"]
+  },
+  {
+    "id": "14",
+    "name": "Akara and Pap",
+    "category": "beans_based",
+    "feedback_template": "A perfect Nigerian breakfast! Akara is made from beans — excellent plant protein and fibre. 🫘 Pap (ogi) is light and easy to digest. Together they give you balanced energy. If the akara was deep-fried, try air-frying or baking for a lighter version. Solid choice!",
+    "health_score": 8,
+    "keywords": ["akara", "pap", "akara and pap", "bean cake", " kosai"]
+  },
+  {
+    "id": "15",
+    "name": "Ofada Rice and Ayamase",
+    "category": "rice_based",
+    "feedback_template": "Ofada rice is unpolished, which means it retains more fibre, vitamins, and minerals than regular white rice! 🌾 Ayamase (green pepper stew) is rich in peppers and spices. Watch the oil content though — the traditional recipe can be heavy. A smaller portion of sauce with more rice balances it out.",
+    "health_score": 7,
+    "keywords": ["ofada", "ayamase", "ofada rice", "ofada and ayamase"]
+  },
+  {
+    "id": "16",
+    "name": "Banga Soup and Starch",
+    "category": "soups_and_swallows",
+    "feedback_template": "Banga (palm fruit) soup is rich in beta-carotene and healthy fats. 🌴 It's a Niger Delta delicacy! The starch (from cassava) is filling. To make it more balanced, add fish or chicken for protein and pair with a side of vegetables. The spices in banga have anti-inflammatory benefits!",
+    "health_score": 7,
+    "keywords": ["banga", "banga soup", "banga and starch", "banga soup and starch"]
+  },
+  {
+    "id": "17",
+    "name": "Chicken and Chips",
+    "category": "snacks",
+    "feedback_template": "The chicken is a great lean protein source! 🍗 The chips (if baked) are a reasonable carb. If deep-fried, the oil content goes up. Try oven-baked chips with skin-on for extra fibre, and add a side of coleslaw or grilled vegetables. The protein-to-carb ratio is solid!",
+    "health_score": 6,
+    "keywords": ["chicken and chips", "chicken", "chips", "fries"]
+  },
+  {
+    "id": "18",
+    "name": "Spaghetti (Pasta)",
+    "category": "rice_based",
+    "feedback_template": "Pasta gives you quick energy from carbs. 🍝 To make it more nutritious, add a protein source like chicken, fish, or eggs, and load up on vegetables — tomatoes, peppers, spinach, or mixed veg. Whole wheat pasta has more fibre and keeps you fuller longer.",
+    "health_score": 6,
+    "keywords": ["spaghetti", "pasta", "pasta and sauce", "spaghetti and sauce"]
+  },
+  {
+    "id": "19",
+    "name": "Okra Soup and Fufu",
+    "category": "soups_and_swallows",
+    "feedback_template": "Okra is a fibre superstar and contains vitamins A, C, and K! 🥒 It also has folate and is great for gut health. Combined with fufu for carbs, this is a solid meal. Add more protein — fish, goat meat, or shrimp — to make it a complete balanced plate.",
+    "health_score": 8,
+    "keywords": ["okra", "okro", "okra soup", "okra and fufu", "okro soup"]
+  },
+  {
+    "id": "20",
+    "name": "Tuwo Shinkafa and Miyan Kuka",
+    "category": "soups_and_swallows",
+    "feedback_template": "A Northern Nigerian classic! Tuwo shinkafa (rice pudding) is soft and easy to digest. 🍚 Miyan kuka (baobab leaf soup) is incredibly nutritious — rich in vitamin C, calcium, and antioxidants. Baobab is a superfood! Add some protein like beef or fish for a complete meal.",
+    "health_score": 8,
+    "keywords": ["tuwo", "miyan kuka", "tuwo shinkafa", "kuka"]
+  },
+  {
+    "id": "21",
+    "name": "Banku and Tilapia",
+    "category": "soups_and_swallows",
+    "feedback_template": "Banku is a fermented corn and cassava dough — the fermentation adds probiotics for gut health! 🐟 Tilapia is lean protein with omega-3 fatty acids. This combo is well-balanced. Add some shito (black pepper sauce) and fresh tomatoes for extra flavour and vitamins. Solid Ghana-Naija fusion!",
+    "health_score": 8,
+    "keywords": ["banku", "tilapia", "banku and tilapia", "banku and fish"]
+  },
+  {
+    "id": "22",
+    "name": "Garri (Eba) and Stew",
+    "category": "soups_and_swallows",
+    "feedback_template": "Garri is quick energy from cassava — it's filling and affordable. 🍲 The stew adds flavour and nutrients from tomatoes and peppers. To boost this meal, add a protein source like chicken, fish, or egg to the stew. More vegetables in the stew = more vitamins!",
+    "health_score": 6,
+    "keywords": ["garri", "eba and stew", "garri and stew", "eba"]
+  },
+  {
+    "id": "23",
+    "name": "Fruit Salad",
+    "category": "snacks",
+    "feedback_template": "Excellent choice! 🍉 Fresh fruits are packed with vitamins, minerals, and antioxidants. Nigerian fruits like pawpaw, watermelon, pineapple, and oranges are incredible for hydration and immunity. If you added yogurt, that's bonus probiotics. This is one of the healthiest snacks you can have!",
+    "health_score": 10,
+    "keywords": ["fruit", "fruits", "fruit salad", "fresh fruit"]
+  },
+  {
+    "id": "24",
+    "name": "Ofada Stew",
+    "category": "soups_and_swallows",
+    "feedback_template": "Ofada stew (ayamase) is rich in green peppers and traditional spices. 🌶️ It's protein-packed when made with assorted meat and eggs. Watch the palm oil quantity — it's nutrient-dense but calorie-heavy. Pair with ofada rice (unpolished) for maximum fibre and nutrients!",
+    "health_score": 7,
+    "keywords": ["ofada stew", "ayamase", "ofada sauce"]
+  },
+  {
+    "id": "25",
+    "name": "Jollof Spaghetti",
+    "category": "rice_based",
+    "feedback_template": "Jollof spaghetti is a fun twist on the classic! 🍝 The tomato-based sauce adds lycopene and vitamin C. To make it healthier, add mixed vegetables (carrots, green beans, peas) and a protein like chicken or shrimp. Use whole wheat spaghetti for extra fibre if available.",
+    "health_score": 6,
+    "keywords": ["jollof spaghetti", "jollof pasta", "spaghetti jollof"]
+  },
+  {
+    "id": "26",
+    "name": "Chin Chin",
+    "category": "snacks",
+    "feedback_template": "Chin chin is a beloved snack! 🍪 It's crunchy and satisfying, but it's deep-fried and can be high in sugar and fat. Enjoy a small handful as a treat rather than a meal. Pair it with fruit or yogurt to balance it out. Everything in moderation!",
+    "health_score": 3,
+    "keywords": ["chin chin", "chinchin"]
+  },
+  {
+    "id": "27",
+    "name": "Puff Puff",
+    "category": "snacks",
+    "feedback_template": "Puff puff is pure comfort! 🟡 These fried dough balls are delicious but calorie-dense. They're mostly carbs and fat with minimal protein or vitamins. Enjoy 2-3 pieces as a treat, not a full meal. Pair with fruit or a protein source to make it more balanced.",
+    "health_score": 3,
+    "keywords": ["puff puff", "puffpuff", "puff-puff"]
+  },
+  {
+    "id": "28",
+    "name": "Asun (Spicy Goat Meat)",
+    "category": "snacks",
+    "feedback_template": "Asun is high in protein and iron from goat meat! 🐐 The spicy pepper marinade has capsaicin which boosts metabolism. Pair with a fresh salad or sautéed vegetables for fibre and vitamins. Goat meat is leaner than beef — great protein choice for a snack or light meal!",
+    "health_score": 7,
+    "keywords": ["asun", "goat meat", "spicy goat", "grilled goat"]
+  },
+  {
+    "id": "29",
+    "name": "Couscous and Vegetable Stew",
+    "category": "rice_based",
+    "feedback_template": "Couscous is a light grain that cooks quickly and pairs well with stews. 🥗 The vegetable stew adds vitamins A, C, and K plus fibre. To boost protein, add chickpeas, chicken, or fish. This is a balanced, light meal — great for lunch or dinner!",
+    "health_score": 8,
+    "keywords": ["couscous", "couscous and stew", "couscous and vegetables"]
+  },
+  {
+    "id": "30",
+    "name": "Ewa Agoyin",
+    "category": "beans_based",
+    "feedback_template": "Ewa agoyin — soft beans with spicy palm oil sauce — is a Lagos street food staple! 🫘 Beans are an excellent source of protein and fibre. The palm oil sauce adds flavour but is calorie-dense. Enjoy this as an occasional treat, and add a side of bread or yam for balance.",
+    "health_score": 7,
+    "keywords": ["ewa agoyin", "ewa", "agoyin", "beans and sauce"]
+  }
+]
