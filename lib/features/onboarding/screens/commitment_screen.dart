@@ -82,7 +82,7 @@ class _CommitmentScreenState extends State<CommitmentScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 20),
                     minimumSize: const Size(double.infinity, 56),
                   ),
-                  child: const Text('Yes, I'm in!'),
+                  child: const Text("Yes, I'm in!"),
                 ),
                 const SizedBox(height: 16),
                 OutlinedButton(

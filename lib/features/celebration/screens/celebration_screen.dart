@@ -50,6 +50,7 @@ class _CelebrationScreenState extends State<CelebrationScreen>
   Widget build(BuildContext context) {
     final balance = DataService.ktcBalance;
     final bestStreak = DataService.bestStreak;
+    final totalMeals = DataService.totalMealsLogged;
 
     return Scaffold(
       backgroundColor: AppTheme.warmBrown,
@@ -95,7 +96,7 @@ class _CelebrationScreenState extends State<CelebrationScreen>
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    'You logged meals for 7 days straight.\nThat's a real commitment to yourself.',
+                    'You logged meals for 7 days straight.\nThat\'s a real commitment to yourself.',
                     style: TextStyle(
                       color: AppTheme.backgroundBeige.withOpacity(0.8),
                       fontSize: 16,
@@ -119,7 +120,7 @@ class _CelebrationScreenState extends State<CelebrationScreen>
                         Container(width: 1, height: 40, color: Colors.white.withOpacity(0.2)),
                         _buildStat('🪙', '$balance', 'KTC Earned'),
                         Container(width: 1, height: 40, color: Colors.white.withOpacity(0.2)),
-                        _buildStat('🍲', '7', 'Meals Logged'),
+                        _buildStat('🍲', '$totalMeals', 'Meals Logged'),
                       ],
                     ),
                   ),

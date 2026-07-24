@@ -259,7 +259,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   const SizedBox(height: 8),
                   Text(
                     day >= 7
-                        ? '🎉 7-day goal complete! You're amazing!'
+                        ? '🎉 7-day goal complete! You\'re amazing!'
                         : '${7 - day} more day${7 - day == 1 ? '' : 's'} to complete your goal',
                     style: TextStyle(
                       fontSize: 13,
