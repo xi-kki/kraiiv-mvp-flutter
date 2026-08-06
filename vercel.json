@@ -1,15 +1,18 @@
 {
-  "buildCommand": "flutter build web --release",
   "outputDirectory": "build/web",
-  "installCommand": "flutter pub get",
-  "framework": "flutter",
   "regions": ["iad1"],
-  "headers": {
-    "/**": {
-      "Cache-Control": "public, max-age=31536000, immutable"
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+      ]
     },
-    "/index.html": {
-      "Cache-Control": "no-cache"
+    {
+      "source": "/index.html",
+      "headers": [
+        { "key": "Cache-Control", "value": "no-cache" }
+      ]
     }
-  }
+  ]
 }

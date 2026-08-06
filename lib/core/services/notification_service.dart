@@ -1,5 +1,7 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:timezone/timezone.dart' as tz;
+import 'package:timezone/data/latest.dart' as tz_data;
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
@@ -9,6 +11,9 @@ class NotificationService {
 
   static Future<void> initialize() async {
     if (_initialized) return;
+
+    // Initialize timezone data
+    tz_data.initializeTimeZones();
 
     const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
     const initSettings = InitializationSettings(android: androidSettings);
@@ -34,6 +39,9 @@ class NotificationService {
       scheduledDate = scheduledDate.add(const Duration(days: 1));
     }
 
+    // Convert to TZDateTime
+    final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
+
     const androidDetails = AndroidNotificationDetails(
       'kraiiv_reminders',
       'Meal Reminders',
@@ -49,7 +57,7 @@ class NotificationService {
       hour, // notification id = hour
       'Kraiiv 🌿',
       message,
-      scheduledDate,
+      tzScheduledDate,
       details,
       uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
       matchDateTimeComponents: DateTimeComponents.time,
