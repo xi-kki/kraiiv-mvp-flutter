@@ -29,6 +29,10 @@ else
 fi
 
 export PATH="$FLUTTER_CACHE/bin:$PATH"
+# Flutter SDK ships as a git repo; allow git to operate on it
+if command -v git >/dev/null 2>&1; then
+  git config --global --add safe.directory "$FLUTTER_CACHE" || true
+fi
 flutter config --no-analytics >/dev/null 2>&1 || true
 flutter --version
 flutter pub get
