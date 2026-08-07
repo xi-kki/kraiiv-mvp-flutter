@@ -102,7 +102,8 @@ lib/
 Two parts, both in this repo:
 
 1. **`model-api/`** — FastAPI service. `POST /detect` runs the
-   Nigerian Food Lens model (downloaded from Hugging Face on first use);
+   Nigerian Food Lens model (pinned revision + sha256, loaded with
+   `weights_only=True` so a compromised repo cannot execute code);
    falls back to the COCO SSD MobileNet pipeline from
    xi-kki/An-Object-Detection-App. Responses are enriched with
    healthScore/calories/protein from `nigerian_foods.json`.
@@ -136,6 +137,23 @@ flutter build web --release
   (deduction, voucher format, insufficient balance, ordering)
 - Web: `python -m http.server 8090` in `build/web`, then browse
   `http://localhost:8090`
+
+## Security
+
+- **Client-side only by design**: KTC balance, history, and voucher codes
+  live in plaintext Hive (localStorage on web). This is a demo economy —
+  never attach real monetary value without a server-side ledger, and do
+  not describe KTC as cash ("Convert KTC to Cash" stays a stub until
+  partner payout exists).
+- **Model API**: weights pinned to an HF revision + sha256,
+  `weights_only=True` with a minimal numpy data-type allowlist; `/detect`
+  is rate-limited (10/min per IP), rejects decompression bombs by pixel
+  count, validates by magic bytes, and returns sanitized errors.
+- **Release builds call no API by default**: `KRAIIV_API_URL` must be
+  set explicitly at build time or the scanner uses the offline matcher
+  and no photo leaves the device.
+- **No secrets in repo**: `.env*` and `.vercel/` are gitignored; CI runs
+  gitleaks on every push. Report vulnerabilities via SECURITY.md.
 
 ## Next Steps (Post-MVP)
 

@@ -1,0 +1,10 @@
+# Code owners: required reviewers for security-sensitive paths.
+# Format: <pattern> <owner>
+
+* @xi-kki
+
+# Model API: pickle-based model loading, image uploads — code-execution adjacent.
+model-api/ @xi-kki
+
+# CI/CD: any change to workflows can affect deploy and supply-chain posture.
+.github/ @xi-kki

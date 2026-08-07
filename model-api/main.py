@@ -2,8 +2,8 @@
 Kraiiv Food Recognition API
 
 Wraps the Nigerian Food Lens model (EfficientNetV2-S, 41 Nigerian food
-classes, https://huggingface.co/yusasif/Nigerian-food-Lens) behind a
-simple /detect endpoint that the Kraiiv MVP scanner calls.
+classes, https://huggingface.co/yusasif/Nigerian-food-recognision) behind
+a simple /detect endpoint that the Kraiiv MVP scanner calls.
 
 Falls back to the COCO SSD MobileNet detector (the pipeline from
 https://github.com/xi-kki/An-Object-Detection-App) when the food model
@@ -14,21 +14,44 @@ Run:
     uvicorn main:app --host 0.0.0.0 --port 8000
 """
 
-from __future__ import annotations
 
+import hashlib
+import io
 import json
 import logging
+import threading
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Optional
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image
+
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 logger = logging.getLogger("kraiiv-api")
 logging.basicConfig(level=logging.INFO)
 
-app = FastAPI(title="Kraiiv Food Recognition", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Warm the food model in the background so the first /detect is not
+    # blocked on the ~80MB Hugging Face download + load. If it fails
+    # (e.g. torch missing), requests fall back per-call as designed.
+    threading.Thread(target=_load_food_model, daemon=True).start()
+    yield
+
+
+app = FastAPI(
+    title="Kraiiv Food Recognition",
+    version="1.1.0",
+    lifespan=lifespan,
+)
+# No cookies/credentials are used by this API, so a permissive CORS policy
+# is acceptable; abuse control comes from the rate limiter below (and an
+# edge allowlist in front of the service once it is hosted).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -36,9 +59,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MODEL_REPO = "yusasif/Nigerian-food-Lens"
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# Nigerian Food Lens — pinned to an exact commit + sha256 so a compromised
+# or mutated Hugging Face repo can never feed us a tampered weights file.
+# The weights are a pickle; torch.load on them is arbitrary code execution
+# unless pinned and verified (see _load_food_model).
+MODEL_REPO = "yusasif/Nigerian-food-recognision"
+MODEL_REVISION = "36a13b5de1ecc61162f7d1ee21e28b11420cdb29"
+MODEL_SHA256 = "7857709a114ea3c868d0e7a6abf42d9031e8704964b6be26437d8a289c70372f"
+
 FOOD_DB_PATH = Path(__file__).parent / "nigerian_foods.json"
 MAX_UPLOAD_BYTES = 16 * 1024 * 1024
+# Hard ceiling on decoded pixels: rejects decompression-bomb images (tiny
+# compressed file, huge dimensions) before any decode work happens.
+Image.MAX_IMAGE_PIXELS = 16_000_000
 
 
 # ─── Nutrition enrichment ────────────────────────────────────────────────
@@ -111,36 +149,77 @@ def _enrich(food_label: str, confidence: float) -> dict:
 # ─── Nigerian Food Lens (torch) ──────────────────────────────────────────
 _food_model = None
 _food_labels: list[str] = []
+_model_load_lock = threading.Lock()
 
 
 def _load_food_model():
-    """Lazily load the EfficientNetV2-S multi-label food model."""
+    """Lazily load the EfficientNetV2-S multi-label food model.
+
+    The weights file is a pickle, so it is treated as untrusted input:
+    downloaded from a pinned revision and verified against a pinned sha256
+    before torch.load (weights_only=True) touches it.
+    """
     global _food_model, _food_labels
     if _food_model is not None:
         return _food_model
 
-    import torch
-    import torch.nn as nn
-    from huggingface_hub import hf_hub_download
-    from torchvision import models
+    # Double-checked locking: the lifespan warm-up and the first /detect
+    # may race; only one thread should download + load the weights.
+    with _model_load_lock:
+        if _food_model is not None:
+            return _food_model
 
-    model_path = hf_hub_download(MODEL_REPO, "best_model.pth")
-    vocab_path = hf_hub_download(MODEL_REPO, "label_vocab.json")
-    _food_labels = json.loads(Path(vocab_path).read_text(encoding="utf-8"))[
-        "labels"
-    ]
+        import torch
+        import torch.nn as nn
+        from huggingface_hub import hf_hub_download
+        from torchvision import models
 
-    checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
-    model = models.efficientnet_v2_s(weights=None)
-    model.classifier = nn.Sequential(
-        nn.Dropout(p=0.3, inplace=True),
-        nn.Linear(model.classifier[1].in_features, len(_food_labels)),
-    )
-    model.load_state_dict(checkpoint["model_state_dict"])
-    model.eval()
-    _food_model = model
-    logger.info("Loaded Nigerian Food Lens (%d classes)", len(_food_labels))
-    return _food_model
+        model_path = hf_hub_download(
+            MODEL_REPO, "best_model.pth", revision=MODEL_REVISION
+        )
+        vocab_path = hf_hub_download(
+            MODEL_REPO, "label_vocab.json", revision=MODEL_REVISION
+        )
+
+        # Verify the pinned sha256 before touching the file with torch.
+        digest = hashlib.sha256(Path(model_path).read_bytes()).hexdigest()
+        if digest != MODEL_SHA256:
+            raise RuntimeError(
+                f"Model checksum mismatch (got {digest[:12]}…, expected "
+                f"{MODEL_SHA256[:12]}…) — refusing to load"
+            )
+
+        _food_labels = json.loads(Path(vocab_path).read_text(encoding="utf-8"))[
+            "labels"
+        ]
+
+        # weights_only=True refuses pickle payloads that are not plain
+        # tensors — the standard mitigation for pickle-based RCE via model
+        # files. This checkpoint embeds numpy scalar/dtype fill-values, so
+        # allowlist exactly those data types (value types, not code).
+        # numpy 2.x moved the real implementations to numpy._core/numpy.
+        # dtypes, so the tuple form pins entries to the paths the pickle
+        # actually references.
+        import numpy as np
+
+        torch.serialization.add_safe_globals(
+            [
+                (np.core.multiarray.scalar, "numpy.core.multiarray.scalar"),
+                (np.dtype, "numpy.dtype"),
+                np.dtypes.Float64DType,
+            ]
+        )
+        checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
+        model = models.efficientnet_v2_s(weights=None)
+        model.classifier = nn.Sequential(
+            nn.Dropout(p=0.3, inplace=True),
+            nn.Linear(model.classifier[1].in_features, len(_food_labels)),
+        )
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+        _food_model = model
+        logger.info("Loaded Nigerian Food Lens (%d classes)", len(_food_labels))
+        return _food_model
 
 
 def _food_detect(image: Image.Image) -> list[dict]:
@@ -244,17 +323,43 @@ def health() -> dict:
 
 
 @app.post("/detect")
-async def detect(file: UploadFile = File(...)) -> dict:
+@limiter.limit("10/minute")
+async def detect(request: Request, file: UploadFile = File(...)) -> dict:
     raw = await file.read()
     if len(raw) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="Image too large (max 16MB)")
-    if file.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+    # Validate by content (magic bytes), not by the client-supplied
+    # Content-Type header — headers are trivially spoofed and real clients
+    # (Dart's http package) send application/octet-stream anyway.
+    if not (
+        raw.startswith(b"\xff\xd8\xff")          # JPEG
+        or raw.startswith(b"\x89PNG\r\n\x1a\n")  # PNG
+        or (raw.startswith(b"RIFF") and raw[8:12] == b"WEBP")
+    ):
         raise HTTPException(status_code=415, detail="Only JPEG/PNG/WebP allowed")
 
+    # Dimension check BEFORE decoding: a tiny compressed file can declare
+    # hundreds of megapixels (decompression bomb). Pillow's own guard
+    # (MAX_IMAGE_PIXELS, set at module level) raises DecompressionBombError
+    # at open(); we map it to a clean 413.
     try:
-        image = Image.open(__import__("io").BytesIO(raw)).convert("RGB")
+        with Image.open(io.BytesIO(raw)) as probe:
+            width, height = probe.size
+        if width * height > Image.MAX_IMAGE_PIXELS:
+            raise HTTPException(status_code=413, detail="Image dimensions too large")
+    except Image.DecompressionBombError:
+        raise HTTPException(status_code=413, detail="Image dimensions too large")
+    except HTTPException:
+        raise
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid image: {exc}")
+        logger.info("Invalid image upload: %s", exc)
+        raise HTTPException(status_code=400, detail="Invalid image")
+
+    try:
+        image = Image.open(io.BytesIO(raw)).convert("RGB")
+    except Exception as exc:
+        logger.info("Could not decode image: %s", exc)
+        raise HTTPException(status_code=400, detail="Invalid image")
 
     # 1) Nigerian food model (preferred)
     try:

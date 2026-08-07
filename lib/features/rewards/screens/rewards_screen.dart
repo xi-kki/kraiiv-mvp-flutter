@@ -39,7 +39,8 @@ class _RewardsScreenState extends State<RewardsScreen> {
       'icon': 'cash',
       'title': 'Convert KTC to Cash',
       'cost': -1,
-      'description': 'Convert your KTC balance directly to cash anytime.',
+      'description':
+          'Real-value conversion arrives with partner payout — coming soon.',
     },
   ];
 

@@ -1,11 +1,11 @@
 {
-    "name": "kraiiv",
-    "short_name": "kraiiv",
+    "name": "Kraiiv - Be Intentional",
+    "short_name": "Kraiiv",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#1B5E20",
+    "description": "Track Nigerian meals, build streaks, earn KTC rewards.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

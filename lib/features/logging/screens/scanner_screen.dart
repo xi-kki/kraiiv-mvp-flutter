@@ -164,9 +164,9 @@ class _ScannerScreenState extends State<ScannerScreen> {
                       ),
                       const SizedBox(height: 12),
                       Text(
-                        FoodRecognitionService.apiBase.contains('localhost')
-                            ? 'AI detection: ${FoodRecognitionService.apiBase}'
-                            : 'AI detection enabled',
+                        FoodRecognitionService.apiEnabled
+                            ? 'AI detection enabled'
+                            : 'Offline detection — no photo leaves your device',
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppTheme.textMuted,

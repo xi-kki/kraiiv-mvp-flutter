@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
@@ -43,26 +44,45 @@ class DetectedFood {
 /// Nigerian food; when the API is unreachable it falls back to the local
 /// keyword matcher so the app stays fully functional offline.
 class FoodRecognitionService {
-  /// Base URL of the model API. Override at build time with:
-  ///   flutter build web --dart-define=KRAIIV_API_URL=http://localhost:8000
-  static const String apiBase = String.fromEnvironment(
+  /// Build-time override. Set with:
+  ///   flutter build web --dart-define=KRAIIV_API_URL=https://api.example.com
+  static const String _configuredApi = String.fromEnvironment(
     'KRAIIV_API_URL',
-    defaultValue: 'http://localhost:8000',
+    defaultValue: '',
   );
 
+  /// Base URL of the model API. Debug builds default to the local dev API
+  /// so `flutter run` works out of the box. Release builds only call the
+  /// API when [KRAIIV_API_URL] was explicitly configured at build time —
+  /// otherwise the scanner uses the offline matcher and no photo ever
+  /// leaves the device.
+  static String get apiBase {
+    if (_configuredApi.isNotEmpty) return _configuredApi;
+    return kReleaseMode ? '' : 'http://localhost:8000';
+  }
+
+  /// True when the model API should be attempted at all.
+  static bool get apiEnabled => apiBase.isNotEmpty;
+
   /// Short timeout so the scanner falls back to the local matcher quickly
-  /// when the model API is unreachable (e.g. in the deployed web build).
+  /// when the model API is unreachable.
   static const Duration _timeout = Duration(seconds: 4);
 
   /// Sends a photo to the model API and returns detected foods,
-  /// or an empty list when the API is unavailable.
+  /// or an empty list when the API is unavailable or not configured.
   static Future<List<DetectedFood>> detect(XFile photo) async {
+    if (!apiEnabled) return [];
     try {
       final bytes = await photo.readAsBytes();
       final uri = Uri.parse('$apiBase/detect');
       final request = http.MultipartRequest('POST', uri)
         ..files.add(
-          http.MultipartFile.fromBytes('file', bytes, filename: 'meal.jpg'),
+          http.MultipartFile.fromBytes(
+            'file',
+            bytes,
+            filename: 'meal.jpg',
+            contentType: MediaType('image', 'jpeg'),
+          ),
         );
       final streamed = await request.send().timeout(_timeout);
       if (streamed.statusCode != 200) {

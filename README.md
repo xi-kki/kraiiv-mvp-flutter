@@ -46,7 +46,16 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 The scanner calls `POST /detect` (base URL overridable via
 `--dart-define=KRAIIV_API_URL=...`); when the API is unreachable it
-falls back to the local 46-food keyword matcher.
+falls back to the local 46-food keyword matcher. Release builds only
+call the API when `KRAIIV_API_URL` was explicitly configured at build
+time — otherwise no photo ever leaves the device.
+
+The model weights are pinned to an exact Hugging Face revision and
+sha256, loaded with `torch.load(weights_only=True)` (numpy data types
+allowlisted) so a compromised model repo cannot execute code on the
+API host. The API rate-limits `/detect` (10/min per IP), rejects
+decompression-bomb images by declared pixel count, and validates
+uploads by magic bytes, not client headers.
 
 Training data + Neo task for expanding the model: `C:/Users/HP/kraiiv-ai/`.
 
@@ -57,9 +66,14 @@ flutter build web --release
 # serve build/web with any static server (e.g. python -m http.server 8090)
 ```
 
-Deployable to Vercel (see `vercel.json`).
+Deployable to Vercel (see `vercel.json`). The app is live at
+`https://kraiiv-mvp-two.vercel.app` (the marketing landing stays at
+`https://kraiiv.vercel.app`).
 
 ## Verification
 
 - `flutter analyze` — clean
-- `flutter test` — splash smoke test
+- `flutter test` — splash smoke test + redemption unit tests
+  (deduction, voucher format, insufficient balance, ordering)
+- CI (`.github/workflows/ci.yml`) runs analyze + tests + gitleaks on
+  every push and pull request

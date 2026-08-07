@@ -40,7 +40,10 @@ class FoodItem {
   }
 
   /// Foods from the Nigerian database count as "local".
-  bool get isLocal => int.tryParse(id) != null && int.parse(id) <= 100;
+  bool get isLocal {
+    final idNum = int.tryParse(id);
+    return idNum != null && idNum <= 100;
+  }
 }
 
 class FoodRepository {
