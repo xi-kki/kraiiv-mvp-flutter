@@ -9,6 +9,9 @@ class FoodItem {
   final String feedbackTemplate;
   final int healthScore;
   final List<String> keywords;
+  final int calories;
+  final double protein;
+  final String insight;
 
   FoodItem({
     required this.id,
@@ -17,6 +20,9 @@ class FoodItem {
     required this.feedbackTemplate,
     required this.healthScore,
     required this.keywords,
+    this.calories = 0,
+    this.protein = 0,
+    this.insight = '',
   });
 
   factory FoodItem.fromJson(Map<String, dynamic> json) {
@@ -27,8 +33,14 @@ class FoodItem {
       feedbackTemplate: json['feedback_template'],
       healthScore: json['health_score'],
       keywords: List<String>.from(json['keywords']),
+      calories: json['calories'] as int? ?? 0,
+      protein: (json['protein'] as num?)?.toDouble() ?? 0,
+      insight: json['insight'] as String? ?? '',
     );
   }
+
+  /// Foods from the Nigerian database count as "local".
+  bool get isLocal => int.tryParse(id) != null && int.parse(id) <= 100;
 }
 
 class FoodRepository {
@@ -36,65 +48,32 @@ class FoodRepository {
 
   Future<void> loadFoods() async {
     try {
-      final String response = await rootBundle.loadString('assets/data/nigerian_foods.json');
-      final data = await json.decode(response) as List;
-      _foods = data.map((e) => FoodItem.fromJson(e)).toList();
+      final raw = await rootBundle.loadString('assets/data/nigerian_foods.json');
+      final data = json.decode(raw) as List<dynamic>;
+      _foods = data
+          .map((e) => FoodItem.fromJson(e as Map<String, dynamic>))
+          .toList();
+      debugPrint('Loaded ${_foods.length} foods');
     } catch (e) {
-      // Fallback if file not found during early dev without built assets
-      debugPrint("Warning: Could not load JSON, using fallback data.");
-      _foods = [
-        FoodItem(
-          id: '1',
-          name: 'Jollof Rice and Chicken',
-          category: 'rice_based',
-          feedbackTemplate: 'Your jollof rice and chicken was tasty! 🍚 This meal gives you good energy from carbs and protein from the chicken. The tomato base is rich in lycopene — a powerful antioxidant. Next time, try adding steamed vegetables or a side salad for extra fibre and vitamins.',
-          healthScore: 7,
-          keywords: ['jollof', 'rice', 'chicken'],
-        ),
-        FoodItem(
-          id: '2',
-          name: 'Eba and Egusi Soup',
-          category: 'soups_and_swallows',
-          feedbackTemplate: 'Nice one! Egusi is packed with healthy fats and protein from melon seeds. 💪 To balance the heavy carbs in eba, try a smaller portion of eba next time and add more dark leafy greens to the soup.',
-          healthScore: 8,
-          keywords: ['eba', 'egusi', 'garri'],
-        ),
-        FoodItem(
-          id: '3',
-          name: 'Moi Moi and Plantain',
-          category: 'beans_based',
-          feedbackTemplate: "You're doing well! Moi moi is an excellent source of plant protein and fibre. 🌱 Paired with plantain, you get good energy and potassium. Great combo!",
-          healthScore: 9,
-          keywords: ['moi moi', 'plantain', 'dodo'],
-        ),
-        FoodItem(
-          id: '4',
-          name: 'Suya',
-          category: 'snacks',
-          feedbackTemplate: 'Suya is a fantastic high-protein snack — the spice blend (yaji) contains ginger and pepper which have anti-inflammatory properties. 🔥 Just remember to pair it with some cabbage, tomatoes, and onions!',
-          healthScore: 6,
-          keywords: ['suya', 'meat', 'beef'],
-        ),
-        FoodItem(
-          id: '5',
-          name: 'Pepper Soup',
-          category: 'soups_and_swallows',
-          feedbackTemplate: 'Pepper soup is light, warming, and full of aromatic spices! 🍲 The broth is hydrating and the spices aid digestion. A great choice when you want something nourishing without being too heavy.',
-          healthScore: 8,
-          keywords: ['pepper soup', 'peppersoup'],
-        ),
-      ];
+      debugPrint('Failed to load foods: $e');
     }
   }
 
+  /// Best-effort match by keyword, then by name substring.
   FoodItem matchFood(String query) {
-    final lowerQuery = query.toLowerCase();
-    
+    final lowerQuery = query.toLowerCase().trim();
+
     for (final food in _foods) {
       for (final keyword in food.keywords) {
-        if (lowerQuery.contains(keyword.toLowerCase())) {
+        if (lowerQuery.contains(keyword.toLowerCase()) ||
+            keyword.toLowerCase().contains(lowerQuery)) {
           return food;
         }
+      }
+    }
+    for (final food in _foods) {
+      if (food.name.toLowerCase().contains(lowerQuery)) {
+        return food;
       }
     }
 
@@ -103,9 +82,13 @@ class FoodRepository {
       id: 'default',
       name: 'Your Meal',
       category: 'mixed',
-      feedbackTemplate: 'Nice one! Keeping track is the first big step. Let’s make sure you rehydrate with water and get ready for a balanced next meal.',
+      feedbackTemplate:
+          'Nice one! Keeping track is the first big step. Let’s make sure you rehydrate with water and get ready for a balanced next meal.',
       healthScore: 6,
       keywords: [],
+      calories: 350,
+      protein: 12,
+      insight: 'Keeping track of what you eat is the first big step to intentional eating.',
     );
   }
 }

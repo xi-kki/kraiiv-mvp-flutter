@@ -55,7 +55,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       hour, // notification id = hour
-      'Kraiiv 🌿',
+      'Kraiiv',
       message,
       tzScheduledDate,
       details,

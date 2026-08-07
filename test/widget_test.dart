@@ -1,26 +1,32 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
+
+import 'package:kraiiv/core/services/data_service.dart';
 import 'package:kraiiv/main.dart';
 
 void main() {
-  testWidgets('Kraiiv app smoke test', (WidgetTester tester) async {
-    // Initialize Hive for testing
-    await Hive.initFlutter();
-    
-    // Build our app and trigger a frame.
+  setUp(() async {
+    final tempDir = await Directory.systemTemp.createTemp('kraiiv_test');
+    Hive.init(tempDir.path);
+    await DataService.initialize();
+  });
+
+  testWidgets('Kraiiv app renders the splash brand', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: KraiivApp(),
-      ),
+      const ProviderScope(child: KraiivApp()),
     );
+    await tester.pump();
 
-    // Wait for the splash screen to load
-    await tester.pumpAndSettle();
-
-    // Verify that the app renders without crashing
     expect(find.byType(MaterialApp), findsOneWidget);
+    expect(find.text('Kraiiv'), findsOneWidget);
+    expect(find.text('Be intentional with every bite'), findsOneWidget);
+
+    // Let the splash timer fire and navigate away cleanly.
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
   });
 }

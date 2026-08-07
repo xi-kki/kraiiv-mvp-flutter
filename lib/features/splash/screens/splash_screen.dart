@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_theme.dart';
 import '../../../core/services/data_service.dart';
+import '../../../core/widgets/brand_header.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -22,7 +23,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1400),
     );
 
     _fadeIn = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -32,7 +33,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       ),
     );
 
-    _scaleUp = Tween<double>(begin: 0.8, end: 1.0).animate(
+    _scaleUp = Tween<double>(begin: 0.85, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.2, 0.8, curve: Curves.easeOutBack),
@@ -41,11 +42,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     _controller.forward();
 
-    // Navigate after splash
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
-      final isComplete = DataService.isOnboardingComplete;
-      context.go(isComplete ? '/home' : '/hook');
+      final destination =
+          DataService.isOnboardingComplete ? '/home' : '/onboarding';
+      context.go(destination);
     });
   }
 
@@ -58,65 +59,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.warmBrown,
-      body: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, child) {
-          return Opacity(
-            opacity: _fadeIn.value,
-            child: Transform.scale(
-              scale: _scaleUp.value,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: AppTheme.supportiveGreen,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.restaurant_menu_rounded,
-                      size: 52,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'Kraiiv',
-                    style: TextStyle(
-                      color: AppTheme.backgroundBeige,
-                      fontSize: 36,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Be intentional.',
-                    style: TextStyle(
-                      color: AppTheme.backgroundBeige.withOpacity(0.7),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w300,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+      body: Center(
+        child: FadeTransition(
+          opacity: _fadeIn,
+          child: ScaleTransition(
+            scale: _scaleUp,
+            child: const BrandHeader(scale: 1.25),
+          ),
+        ),
       ),
     );
   }
 }
-
-

@@ -60,3 +60,8 @@ coverage/
 node_modules/
 .vercel/
 .vercel
+
+# Python (model-api)
+__pycache__/
+*.pyc
+*.pth

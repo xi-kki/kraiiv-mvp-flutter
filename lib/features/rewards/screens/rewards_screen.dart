@@ -1,10 +1,99 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_theme.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 import '../../../core/services/data_service.dart';
+import '../../../core/theme/app_theme.dart';
 
-class RewardsScreen extends StatelessWidget {
+/// Rewards Hub matching the prototype:
+/// balance + Connect Wallet, then available rewards to redeem.
+class RewardsScreen extends StatefulWidget {
   const RewardsScreen({super.key});
+
+  @override
+  State<RewardsScreen> createState() => _RewardsScreenState();
+}
+
+class _RewardsScreenState extends State<RewardsScreen> {
+  static const _rewards = [
+    {
+      'icon': 'spa',
+      'title': 'Spa Treatment Voucher',
+      'price': '\$25',
+      'description':
+          'A relaxing treatment redeemable at participating locations.',
+    },
+    {
+      'icon': 'dessert',
+      'title': 'Gourmet Dessert Box',
+      'price': '\$15',
+      'description': 'Premium chocolate truffles and sweet treats, delivered.',
+    },
+    {
+      'icon': 'market',
+      'title': 'Local Market Voucher',
+      'price': '\$10',
+      'description': 'Towards fresh produce at your local market.',
+    },
+    {
+      'icon': 'cash',
+      'title': 'Convert KTC to Cash',
+      'price': 'KTC',
+      'description': 'Convert your KTC balance directly to cash anytime.',
+    },
+  ];
+
+  IconData _iconFor(String name) {
+    switch (name) {
+      case 'spa':
+        return LucideIcons.sparkles;
+      case 'dessert':
+        return LucideIcons.cake;
+      case 'market':
+        return LucideIcons.shoppingBasket;
+      default:
+        return LucideIcons.repeat;
+    }
+  }
+
+  void _connectWallet() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Connect Wallet'),
+        content: const Text(
+          'Wallet connection is coming soon. Your KTC balance stays safe '
+          'in the meantime.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _redeem(String title) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(LucideIcons.gift,
+            color: AppTheme.primaryGreen, size: 32),
+        title: const Text('Redeem'),
+        content: Text(
+          'Redemption for "$title" is coming soon. Keep earning KTC!',
+          textAlign: TextAlign.center,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -14,180 +103,122 @@ class RewardsScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
           onPressed: () => context.pop(),
+          icon: const Icon(LucideIcons.arrowLeft),
         ),
-        title: const Text('Rewards'),
+        title: const Text('Rewards Hub'),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          // ── Balance Card ──
-          Container(
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppTheme.warmBrown, Color(0xFF6B4F35)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.warmBrown.withOpacity(0.3),
-                  blurRadius: 16,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Column(
-              children: [
-                const Text('🪙', style: TextStyle(fontSize: 48)),
-                const SizedBox(height: 12),
-                Text(
-                  '$balance',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 48,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const Text(
-                  'KTC Tokens',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 16,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(100),
-                  ),
-                  child: const Text(
-                    '≈ ₦0.00 value',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 28),
-
-          // ── How to Earn ──
-          const Text(
-            'How to earn',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.headingBrown,
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildEarnCard('📸', 'Log a meal', '+10 KTC', 'Snap or type what you ate'),
-          _buildEarnCard('🌟', 'Healthy choice', '+5 bonus', 'Score 8/10 or higher'),
-          _buildEarnCard('🔥', 'Streak bonus', '+3 bonus', 'Maintain a 3+ day streak'),
-          const SizedBox(height: 28),
-
-          // ── Redeem Options ──
-          const Text(
-            'Coming soon — Redeem',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.headingBrown,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Redeem your KTC for real rewards',
-            style: TextStyle(
-              fontSize: 14,
-              color: AppTheme.textBody.withOpacity(0.6),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildRedeemOption('📱', 'Airtime', '100 KTC', 'All networks'),
-          _buildRedeemOption('📶', 'Data', '200 KTC', 'MTN, Airtel, Glo, 9Mobile'),
-          _buildRedeemOption('🛒', 'Groceries', '150 KTC', 'Partner stores'),
-          _buildRedeemOption('💪', 'Gym Access', '300 KTC', 'Partner gyms'),
-          const SizedBox(height: 28),
-
-          // ── History ──
-          if (history.isNotEmpty) ...[
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          children: [
             const Text(
-              'Earning history',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.headingBrown,
-              ),
+              'Earn KTC tokens and redeem them anytime',
+              style: TextStyle(fontSize: 14.5, color: AppTheme.textMuted),
             ),
             const SizedBox(height: 16),
-            ...history.take(10).map((entry) => _buildHistoryTile(
-              entry['amount'] ?? 0,
-              entry['reason'] ?? '',
-              entry['timestamp'] ?? '',
-            )),
+            _buildBalanceCard(balance),
+            const SizedBox(height: 24),
+            const Text(
+              'Available Rewards',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const SizedBox(height: 12),
+            ..._rewards.map((reward) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildRewardCard(reward),
+                )),
+            if (history.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              const Text(
+                'Earning History',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 12),
+              ...history.take(8).map((entry) => _buildHistoryRow(entry)),
+            ],
           ],
-
-          const SizedBox(height: 32),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildEarnCard(String emoji, String title, String amount, String description) {
+  Widget _buildBalanceCard(int balance) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.warmBrown.withOpacity(0.08)),
+        gradient: const LinearGradient(
+          colors: [AppTheme.primaryGreen, AppTheme.primaryGreenDark],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 28)),
-          const SizedBox(width: 16),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(LucideIcons.coins, color: Colors.white, size: 26),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.headingBrown,
-                    fontSize: 15,
-                  ),
+                const Text(
+                  'Your balance',
+                  style: TextStyle(color: Colors.white70, fontSize: 13),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  description,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textBody.withOpacity(0.6),
+                  '$balance KTC',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.supportiveGreen.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              amount,
-              style: const TextStyle(
-                color: AppTheme.supportiveGreen,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
+          OutlinedButton(
+            onPressed: _connectWallet,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.white,
+              side: BorderSide(
+                color: Colors.white.withValues(alpha: 0.5),
               ),
+              minimumSize: Size.zero,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.wallet, size: 15),
+                SizedBox(width: 6),
+                Text('Connect Wallet'),
+              ],
             ),
           ),
         ],
@@ -195,132 +226,122 @@ class RewardsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRedeemOption(String emoji, String title, String cost, String subtitle) {
+  Widget _buildRewardCard(Map<String, String> reward) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppTheme.warmBrown.withOpacity(0.08)),
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Row(
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 24)),
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(13),
+            ),
+            child: Icon(
+              _iconFor(reward['icon']!),
+              color: AppTheme.primaryGreen,
+              size: 22,
+            ),
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
+                  reward['title']!,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.headingBrown,
-                    fontSize: 15,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textDark,
                   ),
                 ),
+                const SizedBox(height: 3),
                 Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textBody.withOpacity(0.5),
+                  reward['description']!,
+                  style: const TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: AppTheme.textMuted,
                   ),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.warmBrown.withOpacity(0.08),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              cost,
-              style: const TextStyle(
-                color: AppTheme.warmBrown,
-                fontWeight: FontWeight.bold,
-                fontSize: 13,
+          const SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                reward['price']!,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.primaryGreenDark,
+                ),
               ),
-            ),
+              const SizedBox(height: 6),
+              TextButton(
+                onPressed: () => _redeem(reward['title']!),
+                style: TextButton.styleFrom(
+                  foregroundColor: AppTheme.primaryGreen,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  minimumSize: Size.zero,
+                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                child: const Text('Redeem'),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildHistoryTile(int amount, String reason, String timestamp) {
+  Widget _buildHistoryRow(Map<String, dynamic> entry) {
+    final amount = entry['amount'] as int? ?? 0;
+    final reason = entry['reason'] as String? ?? 'KTC earned';
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceWhite,
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.warmBrown.withOpacity(0.06)),
+        border: Border.all(color: AppTheme.border),
       ),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppTheme.supportiveGreen.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Center(
-              child: Text('🪙', style: TextStyle(fontSize: 16)),
-            ),
-          ),
-          const SizedBox(width: 12),
+          const Icon(LucideIcons.coins,
+              color: AppTheme.primaryGreen, size: 18),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  reason,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: AppTheme.headingBrown,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _formatTimestamp(timestamp),
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: AppTheme.textBody.withOpacity(0.5),
-                  ),
-                ),
-              ],
+            child: Text(
+              reason,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textDark,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
           Text(
-            '+$amount',
+            '+$amount KTC',
             style: const TextStyle(
-              color: AppTheme.supportiveGreen,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+              fontSize: 13.5,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.primaryGreenDark,
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _formatTimestamp(String isoTimestamp) {
-    if (isoTimestamp.isEmpty) return '';
-    try {
-      final dt = DateTime.parse(isoTimestamp);
-      final now = DateTime.now();
-      final diff = now.difference(dt);
-      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-      if (diff.inHours < 24) return '${diff.inHours}h ago';
-      if (diff.inDays == 1) return 'Yesterday';
-      return '${diff.inDays} days ago';
-    } catch (_) {
-      return '';
-    }
   }
 }

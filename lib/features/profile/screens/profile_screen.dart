@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
-import '../../../core/theme/app_theme.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 import '../../../core/services/data_service.dart';
 import '../../../core/services/notification_service.dart';
+import '../../../core/theme/app_theme.dart';
 
+/// My Profile matching the prototype:
+/// profile header → health goal / preference / location →
+/// weekly progress chart → habit categories → achievements.
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -12,430 +17,598 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  late bool _remindersEnabled;
+  static const List<String> _preferences = [
+    'Vegetarian',
+    'Vegan',
+    'Gluten-free',
+    'No restrictions',
+  ];
+  static const List<String> _goals = [
+    'Feel more energized',
+    'Eat more mindfully',
+    'Improve overall health',
+    'Try more local foods',
+  ];
 
-  @override
-  void initState() {
-    super.initState();
-    _remindersEnabled = DataService.dailyRemindersEnabled;
+  Future<void> _editProfile() async {
+    final nameController = TextEditingController(text: DataService.userName);
+    var goal = DataService.healthGoal;
+    var preference = DataService.dietaryPreference;
+    final locationController = TextEditingController(text: DataService.location);
+
+    final saved = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Center(
+                  child: Text(
+                    'Edit Profile',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: locationController,
+                  decoration: const InputDecoration(labelText: 'Location'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _goals.contains(goal) ? goal : null,
+                  decoration: const InputDecoration(labelText: 'Health Goal'),
+                  items: _goals
+                      .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                      .toList(),
+                  onChanged: (v) => setSheetState(() => goal = v ?? goal),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: _preferences.contains(preference)
+                      ? preference
+                      : 'No restrictions',
+                  decoration:
+                      const InputDecoration(labelText: 'Dietary Preference'),
+                  items: _preferences
+                      .map((p) => DropdownMenuItem(value: p, child: Text(p)))
+                      .toList(),
+                  onChanged: (v) =>
+                      setSheetState(() => preference = v ?? preference),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(sheetContext, true),
+                    child: const Text('Save Changes'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (saved == true && mounted) {
+      await DataService.setUserName(nameController.text.trim());
+      await DataService.setHealthGoal(goal);
+      await DataService.setDietaryPreference(preference);
+      await DataService.setLocation(locationController.text.trim());
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final streak = DataService.currentStreak;
-    final bestStreak = DataService.bestStreak;
-    final totalMeals = DataService.totalMealsLogged;
-    final balance = DataService.ktcBalance;
-    final goals = DataService.selectedGoals;
+    final name = DataService.userName.trim();
+    final firstName = name.isEmpty ? 'Kraiiv' : name.split(' ').first;
+    final initial = firstName.isNotEmpty ? firstName[0].toUpperCase() : 'K';
+    final weekly = DataService.weeklyMealCounts;
+    final completion = (DataService.weeklyCompletionRate * 100).round();
 
-    return SafeArea(
-      child: ListView(
-        padding: const EdgeInsets.all(24.0),
-        children: [
-          const Text(
-            'Profile',
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.headingBrown,
-            ),
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => context.pop(),
+          icon: const Icon(LucideIcons.arrowLeft),
+        ),
+        title: const Text('My Profile'),
+        actions: [
+          IconButton(
+            tooltip: 'Edit profile',
+            onPressed: _editProfile,
+            icon: const Icon(LucideIcons.filePen, size: 20),
           ),
-          const SizedBox(height: 32),
-
-          // ── Stats Row ──
-          Row(
-            children: [
-              Expanded(child: _buildStatCard('🔥', 'Streak', '$streak day${streak == 1 ? '' : 's'}')),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatCard('🏆', 'Best', '$bestStreak day${bestStreak == 1 ? '' : 's'}')),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildStatCard('🍲', 'Meals', '$totalMeals total')),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _buildStatCard('🪙', 'Tokens', '$balance KTC', onTap: () => context.push('/rewards')),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 28),
-
-          // ── Your Goals ──
-          if (goals.isNotEmpty) ...[
-            const Text(
-              'Your Goals',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: AppTheme.headingBrown,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: goals.map((goal) => Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: AppTheme.supportiveGreen.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: AppTheme.supportiveGreen.withOpacity(0.2)),
-                ),
-                child: Text(
-                  goal,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppTheme.supportiveGreen,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              )).toList(),
-            ),
+          const SizedBox(width: 8),
+        ],
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+          children: [
+            _buildIdentityCard(initial, firstName),
+            const SizedBox(height: 16),
+            _buildProfileRows(),
             const SizedBox(height: 24),
+            _buildWeeklyProgress(weekly, completion),
+            const SizedBox(height: 24),
+            _buildHabitCategories(),
+            const SizedBox(height: 24),
+            _buildAchievements(),
+            const SizedBox(height: 8),
+            _buildNudgeToggle(),
           ],
+        ),
+      ),
+    );
+  }
 
-          // ── Settings ──
-          Container(
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceWhite,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.warmBrown.withOpacity(0.08)),
-            ),
-            child: Column(
-              children: [
-                SwitchListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  secondary: const Icon(Icons.notifications_active_rounded, color: AppTheme.warmBrown),
-                  title: const Text(
-                    'Daily Reminders',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.headingBrown,
-                    ),
-                  ),
-                  subtitle: Text(
-                    _remindersEnabled ? 'Klia will remind you to log meals' : 'Reminders off',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textBody.withOpacity(0.6),
-                    ),
-                  ),
-                  value: _remindersEnabled,
-                  activeColor: AppTheme.supportiveGreen,
-                  onChanged: (value) async {
-                    setState(() => _remindersEnabled = value);
-                    await DataService.setDailyReminders(value);
-                    if (value) {
-                      await NotificationService.scheduleStandardReminders();
-                    } else {
-                      await NotificationService.cancelAll();
-                    }
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(value ? 'Daily reminders enabled 🌿' : 'Reminders turned off'),
-                          backgroundColor: AppTheme.supportiveGreen,
-                          behavior: SnackBarBehavior.floating,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          duration: const Duration(seconds: 2),
-                        ),
-                      );
-                    }
-                  },
-                ),
-                Divider(height: 1, color: AppTheme.warmBrown.withOpacity(0.08)),
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  leading: const Icon(Icons.star_rounded, color: AppTheme.warmBrown),
-                  title: const Text(
-                    'Rate Kraiiv',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.headingBrown,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Help us improve with your feedback',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textBody.withOpacity(0.6),
-                    ),
-                  ),
-                  trailing: const Icon(Icons.chevron_right, color: AppTheme.warmBrown),
-                  onTap: () => _showRatingDialog(),
-                ),
-                Divider(height: 1, color: AppTheme.warmBrown.withOpacity(0.08)),
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16),
-                  leading: const Icon(Icons.info_outline_rounded, color: AppTheme.warmBrown),
-                  title: const Text(
-                    'About Kraiiv',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.headingBrown,
-                    ),
-                  ),
-                  subtitle: Text(
-                    'Version 1.0.0',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textBody.withOpacity(0.6),
-                    ),
-                  ),
-                  trailing: const Icon(Icons.chevron_right, color: AppTheme.warmBrown),
-                  onTap: () => _showAboutDialog(),
-                ),
-              ],
+  Widget _buildIdentityCard(String initial, String firstName) {
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: AppTheme.gold,
+          child: Text(
+            initial,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.w800,
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          // ── Google Sign-In Banner ──
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.warmBrown.withOpacity(0.06),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.warmBrown.withOpacity(0.15)),
-            ),
-            child: Column(
-              children: [
-                const Text(
-                  'Sign in to save your progress across devices.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: AppTheme.textBody, fontSize: 14),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                firstName,
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textDark,
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  onPressed: () => _showComingSoon('Google Sign-in'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTheme.textBody,
-                    elevation: 1,
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              ),
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  const Icon(LucideIcons.coins,
+                      color: AppTheme.primaryGreen, size: 16),
+                  const SizedBox(width: 6),
+                  Text(
+                    '${DataService.ktcBalance} KTC',
+                    style: const TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.primaryGreenDark,
+                    ),
                   ),
-                  icon: const Icon(Icons.g_mobiledata_rounded, size: 28),
-                  label: const Text('Sign in with Google'),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ],
           ),
+        ),
+      ],
+    );
+  }
 
-          const SizedBox(height: 32),
+  Widget _buildProfileRows() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        children: [
+          _row(
+            icon: LucideIcons.zap,
+            label: 'Health Goal',
+            value: DataService.healthGoal,
+          ),
+          const Divider(height: 1),
+          _row(
+            icon: LucideIcons.utensils,
+            label: 'Preferred',
+            value: DataService.dietaryPreference,
+          ),
+          const Divider(height: 1),
+          _row(
+            icon: LucideIcons.mapPin,
+            label: 'Location',
+            value: DataService.location.isEmpty
+                ? 'Not set'
+                : DataService.location,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatCard(String emoji, String label, String value, {VoidCallback? onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppTheme.surfaceWhite,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.supportiveGreen.withOpacity(0.15)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Text(emoji, style: const TextStyle(fontSize: 18)),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(fontSize: 13, color: AppTheme.textBody.withOpacity(0.6)),
-                ),
-              ],
+  Widget _row({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 13),
+      child: Row(
+        children: [
+          Icon(icon, color: AppTheme.gold, size: 18),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textMuted,
+              ),
             ),
-            const SizedBox(height: 8),
-            Text(
+          ),
+          Expanded(
+            child: Text(
               value,
               style: const TextStyle(
-                color: AppTheme.headingBrown,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textDark,
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
-  void _showRatingDialog() {
-    int _rating = 0;
-    showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: const Text(
-            'Rate Kraiiv',
-            style: TextStyle(color: AppTheme.headingBrown, fontWeight: FontWeight.bold),
+  Widget _buildWeeklyProgress(List<int> weekly, int completion) {
+    final labels = List.generate(7, (i) {
+      final date = DateTime.now().subtract(Duration(days: 6 - i));
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return days[date.weekday - 1];
+    });
+    final maxCount = weekly.fold<int>(1, (a, b) => a > b ? a : b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(LucideIcons.trendingUp,
+                color: AppTheme.primaryGreen, size: 20),
+            const SizedBox(width: 8),
+            const Text(
+              'Weekly Progress',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textDark,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'completion rate: $completion%',
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w600,
+                color: AppTheme.textMuted,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.border),
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
+          child: Column(
             children: [
-              const Text(
-                'How was your experience with Kraiiv?',
-                style: TextStyle(color: AppTheme.textBody),
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) => GestureDetector(
-                  onTap: () => setDialogState(() => _rating = index + 1),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(
-                      index < _rating ? Icons.star_rounded : Icons.star_outline_rounded,
-                      size: 40,
-                      color: index < _rating ? const Color(0xFFD4A017) : AppTheme.warmBrown.withOpacity(0.3),
-                    ),
-                  ),
-                )),
-              ),
-              const SizedBox(height: 16),
-              if (_rating > 0)
-                Text(
-                  _rating >= 4 ? 'Thanks! We love you too 💚' : _rating >= 2 ? 'We\'ll do better! 🙏' : 'Sorry! Tell us how to improve',
-                  style: const TextStyle(color: AppTheme.supportiveGreen, fontWeight: FontWeight.w500),
+              SizedBox(
+                height: 120,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: List.generate(7, (i) {
+                    final count = weekly[i];
+                    final height = count == 0
+                        ? 6.0
+                        : 10.0 + (count / maxCount) * 90.0;
+                    return Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 5),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            if (count > 0)
+                              Text(
+                                '$count',
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.primaryGreenDark,
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            Container(
+                              height: height,
+                              decoration: BoxDecoration(
+                                color: count > 0
+                                    ? AppTheme.primaryGreen
+                                    : AppTheme.border,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
                 ),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: labels
+                    .map((l) => Expanded(
+                          child: Center(
+                            child: Text(
+                              l,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.textMuted,
+                              ),
+                            ),
+                          ),
+                        ))
+                    .toList(),
+              ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel', style: TextStyle(color: AppTheme.textBody)),
-            ),
-            ElevatedButton(
-              onPressed: _rating == 0 ? null : () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(_rating >= 4 ? 'Thanks for the love! 💚' : 'Feedback noted — we\'ll improve!'),
-                    backgroundColor: AppTheme.supportiveGreen,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  ),
-                );
-              },
-              child: const Text('Submit'),
-            ),
-          ],
         ),
-      ),
+      ],
     );
   }
 
-  void _showAboutDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: const BoxDecoration(
-                color: AppTheme.supportiveGreen,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 22),
-            ),
-            const SizedBox(width: 12),
-            const Text(
-              'Kraiiv',
-              style: TextStyle(color: AppTheme.headingBrown, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Your warm nutrition habit companion.',
-              style: TextStyle(color: AppTheme.textBody, fontSize: 15),
-            ),
-            const SizedBox(height: 16),
-            _aboutRow('Version', '1.0.0'),
-            _aboutRow('Built with', 'Flutter + Hive'),
-            _aboutRow('Foods database', '30 Nigerian meals'),
-            _aboutRow('Made for', 'Nigerian busy lives 🇳🇬'),
-            const SizedBox(height: 16),
-            const Text(
-              'Kraiiv helps you build healthy eating habits with simple guidance, streak tracking, and rewards — all offline-first.',
-              style: TextStyle(color: AppTheme.textBody, fontSize: 13, height: 1.5),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              '🌿 Be intentional.',
-              style: TextStyle(
-                color: AppTheme.supportiveGreen,
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close', style: TextStyle(color: AppTheme.warmBrown)),
+  Widget _buildHabitCategories() {
+    final categories = [
+      ('Food', DataService.totalMealsLogged, LucideIcons.utensils),
+      ('Mindful', DataService.mindfulMeals, LucideIcons.heartPulse),
+      ('Local', DataService.localMeals, LucideIcons.mapPin),
+      ('Streak', DataService.currentStreak, LucideIcons.flame),
+    ];
+    final maxCount =
+        categories.fold<int>(1, (a, c) => a > c.$2 ? a : c.$2);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Habit Categories',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textDark,
           ),
-        ],
-      ),
-    );
-  }
-
-  void _showComingSoon(String feature) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Row(
-          children: [
-            const Text('🚧', style: TextStyle(fontSize: 28)),
-            const SizedBox(width: 12),
-            Text(
-              '$feature',
-              style: const TextStyle(color: AppTheme.headingBrown, fontWeight: FontWeight.bold, fontSize: 18),
-            ),
-          ],
         ),
-        content: Text(
-          '$feature is coming soon! We\'re working hard to bring you cloud sync, family plans, and more. Stay tuned! 🌿',
-          style: const TextStyle(color: AppTheme.textBody, height: 1.5),
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Got it'),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.border),
           ),
-        ],
-      ),
+          child: Column(
+            children: categories.map((c) {
+              final (label, count, icon) = c;
+              final fraction = count / maxCount;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 7),
+                child: Row(
+                  children: [
+                    Icon(icon, color: AppTheme.gold, size: 17),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 66,
+                      child: Text(
+                        label,
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(5),
+                        child: LinearProgressIndicator(
+                          value: fraction,
+                          minHeight: 10,
+                          backgroundColor: AppTheme.border,
+                          color: AppTheme.primaryGreen,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 34,
+                      child: Text(
+                        '$count',
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.primaryGreenDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _aboutRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 13, color: AppTheme.textBody.withOpacity(0.6))),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.headingBrown)),
-        ],
+  Widget _buildAchievements() {
+    final badges = [
+      (
+        count: DataService.currentStreak,
+        label: 'Streak Days',
+        icon: LucideIcons.flame,
+        color: AppTheme.orange,
+      ),
+      (
+        count: DataService.mindfulMeals,
+        label: 'Mindful Meals',
+        icon: LucideIcons.heartPulse,
+        color: AppTheme.primaryGreen,
+      ),
+      (
+        count: DataService.localMeals,
+        label: 'Local Meals',
+        icon: LucideIcons.mapPin,
+        color: AppTheme.blue,
+      ),
+      (
+        count: DataService.totalMealsLogged,
+        label: 'Meals Scanned',
+        icon: LucideIcons.award,
+        color: AppTheme.gold,
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Achievements',
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textDark,
+          ),
+        ),
+        const SizedBox(height: 12),
+        GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 12,
+          crossAxisSpacing: 12,
+          childAspectRatio: 1.5,
+          children: badges
+              .map((b) => Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppTheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppTheme.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(b.icon, color: b.color, size: 18),
+                            const Spacer(),
+                            Text(
+                              '${b.count}',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w800,
+                                color: b.color,
+                              ),
+                            ),
+                          ],
+                        ),
+                        Text(
+                          b.label,
+                          style: const TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ))
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildNudgeToggle() {
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: SwitchListTile(
+        value: DataService.notificationsEnabled,
+        activeTrackColor: AppTheme.primaryGreen,
+        secondary: const Icon(LucideIcons.bell, color: AppTheme.gold),
+        title: const Text(
+          'Daily nudges',
+          style: TextStyle(
+            fontSize: 14.5,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.textDark,
+          ),
+        ),
+        subtitle: const Text(
+          'Quick reminders to stay on track',
+          style: TextStyle(fontSize: 12.5, color: AppTheme.textMuted),
+        ),
+        onChanged: (enabled) async {
+          setState(() {});
+          await DataService.setNotificationsEnabled(enabled);
+          if (!kIsWeb) {
+            if (enabled) {
+              await NotificationService.scheduleStandardReminders();
+            } else {
+              await NotificationService.cancelAll();
+            }
+          }
+        },
       ),
     );
   }

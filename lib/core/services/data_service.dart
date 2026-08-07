@@ -1,12 +1,12 @@
 import 'package:hive/hive.dart';
 
 /// Central data service managing all persistent state via Hive boxes.
-/// 
+///
 /// Boxes:
-///   - 'settings'  → onboarding complete, user name, goals, daily reminders
-///   - 'meals'     → list of logged meals with timestamps
-///   - 'streaks'   → streak count, last log date, best streak
-///   - 'tokens'    → KTC token balance, earning history
+///   - 'settings' → onboarding, user profile, daily goal progress, reminders
+///   - 'meals'    → list of logged meals with timestamps + nutrition
+///   - 'streaks'  → streak count, last log date, best streak
+///   - 'tokens'   → KTC token balance, earning history
 class DataService {
   static late Box _settings;
   static late Box _meals;
@@ -21,24 +21,107 @@ class DataService {
   }
 
   // ─── Onboarding ────────────────────────────────────────────
-  static bool get isOnboardingComplete => _settings.get('onboarding_complete', defaultValue: false);
-  static Future<void> setOnboardingComplete() => _settings.put('onboarding_complete', true);
+  static bool get isOnboardingComplete =>
+      _settings.get('onboarding_complete', defaultValue: false);
+  static Future<void> setOnboardingComplete() =>
+      _settings.put('onboarding_complete', true);
 
-  static String get userName => _settings.get('user_name', defaultValue: '');
-  static Future<void> setUserName(String name) => _settings.put('user_name', name);
+  static String get userName =>
+      _settings.get('user_name', defaultValue: '');
+  static Future<void> setUserName(String name) =>
+      _settings.put('user_name', name);
 
-  static List<String> get selectedGoals => 
-      List<String>.from(_settings.get('selected_goals', defaultValue: []));
-  static Future<void> setSelectedGoals(List<String> goals) => _settings.put('selected_goals', goals);
+  static String get dietaryPreference =>
+      _settings.get('dietary_preference', defaultValue: 'No restrictions');
+  static Future<void> setDietaryPreference(String value) =>
+      _settings.put('dietary_preference', value);
 
-  static bool get commitmentAccepted => _settings.get('commitment_accepted', defaultValue: false);
-  static Future<void> setCommitmentAccepted() => _settings.put('commitment_accepted', true);
+  static String get healthGoal =>
+      _settings.get('health_goal', defaultValue: 'Eat more mindfully');
+  static Future<void> setHealthGoal(String value) =>
+      _settings.put('health_goal', value);
 
-  // ─── Daily Reminders ──────────────────────────────────────
-  static bool get dailyRemindersEnabled => _settings.get('daily_reminders', defaultValue: true);
-  static Future<void> setDailyReminders(bool enabled) => _settings.put('daily_reminders', enabled);
+  static String get location =>
+      _settings.get('location', defaultValue: '');
+  static Future<void> setLocation(String value) =>
+      _settings.put('location', value);
 
-  // ─── Meal Logging ─────────────────────────────────────────
+  static bool get notificationsEnabled =>
+      _settings.get('notifications_enabled', defaultValue: false);
+  static Future<void> setNotificationsEnabled(bool enabled) =>
+      _settings.put('notifications_enabled', enabled);
+
+  /// Legacy alias kept for compatibility.
+  static bool get dailyRemindersEnabled => notificationsEnabled;
+  static Future<void> setDailyReminders(bool enabled) =>
+      setNotificationsEnabled(enabled);
+
+  // ─── Daily Goals ───────────────────────────────────────────
+  /// The four daily goals from the prototype, with KTC rewards.
+  static const List<Map<String, Object>> dailyGoals = [
+    {
+      'title': 'Log a local and seasonal meal',
+      'reward': 15,
+    },
+    {
+      'title': 'Try a new vegetable from the farmer\'s market',
+      'reward': 20,
+    },
+    {
+      'title': 'Eat mindfully without distractions for one meal',
+      'reward': 10,
+    },
+    {
+      'title': 'Scan 3 food items to check nutrition facts',
+      'reward': 25,
+    },
+  ];
+
+  static DateTime _today() {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
+
+  static String? get _goalsDate => _settings.get('goals_date');
+
+  /// Marks a goal complete for today and awards KTC.
+  /// Returns the amount awarded (0 if already completed today).
+  static Future<int> completeGoal(int index) async {
+    if (index < 0 || index >= dailyGoals.length) return 0;
+    final today = _today().toIso8601String();
+    final completed = List<bool>.from(
+      _settings.get('goals_completed', defaultValue: [false, false, false, false]),
+    );
+    if (_goalsDate != today) {
+      completed.fillRange(0, completed.length, false);
+      await _settings.put('goals_date', today);
+    }
+    if (index >= completed.length) completed.length = index + 1;
+    if (completed[index]) return 0;
+
+    completed[index] = true;
+    await _settings.put('goals_completed', completed);
+
+    final reward = dailyGoals[index]['reward'] as int;
+    await _awardTokens(reward,
+        reason: 'Daily goal: ${dailyGoals[index]['title']}');
+    return reward;
+  }
+
+  static List<bool> get goalsCompletedToday {
+    final completed = List<bool>.from(
+      _settings.get('goals_completed', defaultValue: [false, false, false, false]),
+    );
+    if (_goalsDate != _today().toIso8601String()) {
+      return [false, false, false, false];
+    }
+    return completed;
+  }
+
+  static int get goalsDoneToday =>
+      goalsCompletedToday.where((done) => done).length;
+
+  // ─── Meal Logging ──────────────────────────────────────────
   static List<Map<String, dynamic>> get loggedMeals {
     final raw = _meals.get('list', defaultValue: <Map>[]);
     return List<Map<String, dynamic>>.from(
@@ -51,6 +134,9 @@ class DataService {
     required String category,
     required int healthScore,
     required String feedback,
+    int? calories,
+    double? protein,
+    bool isLocal = false,
   }) async {
     final meals = loggedMeals;
     meals.insert(0, {
@@ -58,6 +144,9 @@ class DataService {
       'category': category,
       'healthScore': healthScore,
       'feedback': feedback,
+      'calories': calories,
+      'protein': protein,
+      'isLocal': isLocal,
       'timestamp': DateTime.now().toIso8601String(),
     });
     // Keep last 100 meals
@@ -66,12 +155,55 @@ class DataService {
     }
     await _meals.put('list', meals);
     await _updateStreak();
-    await _awardTokens(healthScore);
+
+    // Base earn: 10 KTC per log, +5 healthy choice bonus, +3 streak bonus.
+    var earned = 10;
+    if (healthScore >= 8) earned += 5;
+    if (currentStreak >= 3) earned += 3;
+    await _awardTokens(earned, reason: 'Meal logged');
   }
 
   static int get totalMealsLogged => loggedMeals.length;
 
-  // ─── Streak Tracking ──────────────────────────────────────
+  /// Number of meals logged on each of the last 7 days (oldest first).
+  static List<int> get weeklyMealCounts {
+    final counts = List<int>.filled(7, 0);
+    final today = _today();
+    for (final meal in loggedMeals) {
+      final ts = DateTime.tryParse(meal['timestamp'] as String? ?? '');
+      if (ts == null) continue;
+      final day = DateTime(ts.year, ts.month, ts.day);
+      final diff = today.difference(day).inDays;
+      if (diff >= 0 && diff < 7) {
+        counts[6 - diff] += 1;
+      }
+    }
+    return counts;
+  }
+
+  /// Fraction (0..1) of the last 7 days with at least one meal logged.
+  static double get weeklyCompletionRate {
+    final today = _today();
+    final activeDays = <String>{};
+    for (final meal in loggedMeals) {
+      final ts = DateTime.tryParse(meal['timestamp'] as String? ?? '');
+      if (ts == null) continue;
+      final day = DateTime(ts.year, ts.month, ts.day);
+      if (today.difference(day).inDays < 7) {
+        activeDays.add(day.toIso8601String());
+      }
+    }
+    return activeDays.length / 7.0;
+  }
+
+  // ─── Habit stats (profile) ─────────────────────────────────
+  static int get mindfulMeals =>
+      loggedMeals.where((m) => (m['healthScore'] as int? ?? 0) >= 8).length;
+
+  static int get localMeals =>
+      loggedMeals.where((m) => m['isLocal'] == true).length;
+
+  // ─── Streak Tracking ───────────────────────────────────────
   static int get currentStreak => _streaks.get('current', defaultValue: 0);
   static int get bestStreak => _streaks.get('best', defaultValue: 0);
   static int get currentDay => _streaks.get('day', defaultValue: 1);
@@ -82,12 +214,10 @@ class DataService {
   }
 
   static Future<void> _updateStreak() async {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
+    final today = _today();
     final lastLog = _lastLogDate;
 
     if (lastLog == null) {
-      // First ever log
       await _streaks.put('current', 1);
       await _streaks.put('day', 1);
       await _streaks.put('last_log_date', today.toIso8601String());
@@ -99,10 +229,8 @@ class DataService {
     final diff = today.difference(lastLogDay).inDays;
 
     if (diff == 0) {
-      // Already logged today — no streak change
-      return;
+      return; // Already logged today — no streak change
     } else if (diff == 1) {
-      // Consecutive day!
       final newStreak = currentStreak + 1;
       final newDay = currentDay + 1;
       await _streaks.put('current', newStreak);
@@ -110,7 +238,6 @@ class DataService {
       await _streaks.put('last_log_date', today.toIso8601String());
       await _checkBestStreak(newStreak);
     } else {
-      // Streak broken — start fresh
       await _streaks.put('current', 1);
       await _streaks.put('day', 1);
       await _streaks.put('last_log_date', today.toIso8601String());
@@ -126,15 +253,12 @@ class DataService {
   static bool get hasLoggedToday {
     final lastLog = _lastLogDate;
     if (lastLog == null) return false;
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final lastLogDay = DateTime(lastLog.year, lastLog.month, lastLog.day);
-    return today == lastLogDay;
+    return _today() == DateTime(lastLog.year, lastLog.month, lastLog.day);
   }
 
   static bool get is7DayGoalComplete => currentDay >= 7;
 
-  // ─── KTC Token System ─────────────────────────────────────
+  // ─── KTC Token System ──────────────────────────────────────
   static int get ktcBalance => _tokens.get('balance', defaultValue: 0);
 
   static List<Map<String, dynamic>> get tokenHistory {
@@ -144,30 +268,21 @@ class DataService {
     );
   }
 
-  static Future<void> _awardTokens(int healthScore) async {
-    // Base earn: 10 KTC per log
-    // Bonus: +5 if health score >= 8
-    // Bonus: +3 if streak is 3+
-    int base = 10;
-    int bonus = 0;
-    if (healthScore >= 8) bonus += 5;
-    if (currentStreak >= 3) bonus += 3;
-    final totalEarned = base + bonus;
-
-    final newBalance = ktcBalance + totalEarned;
+  static Future<void> _awardTokens(int amount, {required String reason}) async {
+    final newBalance = ktcBalance + amount;
     await _tokens.put('balance', newBalance);
 
     final history = tokenHistory;
     history.insert(0, {
-      'amount': totalEarned,
-      'reason': healthScore >= 8 ? 'Healthy choice bonus' : 'Meal logged',
+      'amount': amount,
+      'reason': reason,
       'timestamp': DateTime.now().toIso8601String(),
     });
     if (history.length > 50) history.removeRange(50, history.length);
     await _tokens.put('history', history);
   }
 
-  // ─── Reset / Debug ────────────────────────────────────────
+  // ─── Reset / Debug ─────────────────────────────────────────
   static Future<void> resetAll() async {
     await _settings.clear();
     await _meals.clear();

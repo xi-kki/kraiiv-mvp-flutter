@@ -1,78 +1,65 @@
 # Kraiiv MVP
 
-A warm, supportive mobile nutrition habit companion app for Nigerians.
+A warm, supportive mobile nutrition habit companion app for Nigerians —
+rebuilt to match the video prototype walkthrough. Light theme, chat
+onboarding with Klia, daily goals with KTC rewards, AI food scanning,
+and a stats-rich profile. All icons from [lucide.dev](https://lucide.dev)
+(via `lucide_flutter`) — no emojis.
 
 ## Features
 
-- **Onboarding Flow**: 3-step personalized onboarding (Hook → Goals → Commitment)
-- **Home Dashboard**: Streak progress, KTC balance, daily tips from Klia
-- **Meal Logging**: Camera capture or text input with quick suggestions
-- **AI Feedback**: Health scores (1-10) for 30+ Nigerian foods with personalized tips
-- **History**: Persistent meal log with relative timestamps
-- **Rewards (KTC)**: Token system with earning rules and redemption options
-- **Celebration**: Confetti animation on 7-day goal completion
-- **Profile**: Stats, goal badges, daily reminders
+- **Chat Onboarding**: 5 steps with Klia — name, dietary preference,
+  health goal, location, daily check-in
+- **Home Dashboard**: greeting, Your Progress card, Today's Goals
+  (+15/+20/+10/+25 KTC), Local & Seasonal recipe ideas
+- **Food Scanner**: real AI detection of 41 Nigerian foods
+  (Nigerian Food Lens model), calories/protein/health insight,
+  offline keyword fallback
+- **Rewards Hub**: KTC balance, Connect Wallet, redeemable rewards,
+  earning history
+- **Klia Chat**: nutrition coach with keyword answers
+- **My Profile**: weekly progress chart, habit categories, achievements,
+  editable profile
 
 ## Tech Stack
 
-- **Framework**: Flutter 3.2+
-- **State Management**: Riverpod
-- **Local Storage**: Hive (offline-first)
-- **Routing**: GoRouter
-- **Notifications**: flutter_local_notifications (mobile only)
+- **Framework**: Flutter 3.2+ · **Icons**: lucide_flutter (lucide.dev)
+- **State**: Riverpod · **Storage**: Hive (offline-first)
+- **Routing**: GoRouter · **Notifications**: flutter_local_notifications
+- **AI detection**: FastAPI `model-api/` → EfficientNetV2-S Nigerian
+  Food Lens (41 classes), COCO SSD MobileNet fallback
 
-## How to Run
+## Run
 
 ```bash
-cd "C:/Users/HP/Kraiiv MVP"
 flutter pub get
-flutter run
-```
-
-For web:
-```bash
 flutter run -d chrome
 ```
+
+## AI Food Recognition
+
+```bash
+cd model-api
+pip install -r requirements.txt
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+The scanner calls `POST /detect` (base URL overridable via
+`--dart-define=KRAIIV_API_URL=...`); when the API is unreachable it
+falls back to the local 46-food keyword matcher.
+
+Training data + Neo task for expanding the model: `C:/Users/HP/kraiiv-ai/`.
 
 ## Build for Web
 
 ```bash
 flutter build web --release
+# serve build/web with any static server (e.g. python -m http.server 8090)
 ```
 
-## Deployment
+Deployable to Vercel (see `vercel.json`).
 
-Configured for Vercel deployment:
-- Build command: `flutter build web --release`
-- Output directory: `build/web`
+## Verification
 
-## Project Structure
-
-```
-lib/
-├── core/
-│   ├── router/           # GoRouter configuration
-│   ├── services/         # Data persistence, notifications
-│   └── theme/            # Brand theming
-├── data/
-│   └── repository/       # 30 Nigerian foods database
-├── features/
-│   ├── celebration/      # 7-day goal completion
-│   ├── history/          # Meal history (persisted)
-│   ├── home/             # Main dashboard with streaks
-│   ├── layout/           # App shell, bottom nav
-│   ├── logging/          # Food logging + AI feedback
-│   ├── onboarding/       # 3-step onboarding flow
-│   ├── profile/          # User profile + settings
-│   ├── rewards/          # KTC token system
-│   └── splash/           # Animated splash screen
-└── main.dart
-```
-
-## Next Steps (Post-MVP)
-
-- [ ] Firebase Auth integration
-- [ ] Camera AI vision (food recognition)
-- [ ] Cloud sync (meals, streaks, tokens)
-- [ ] KTC redemption (airtime, data, groceries)
-- [ ] Community features (leaderboards)
+- `flutter analyze` — clean
+- `flutter test` — splash smoke test
