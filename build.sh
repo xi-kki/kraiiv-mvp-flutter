@@ -10,11 +10,13 @@ FLUTTER_BIN="$FLUTTER_CACHE/bin/flutter"
 if [ ! -x "$FLUTTER_BIN" ]; then
   echo "==> Installing Flutter SDK (stable)..."
   mkdir -p "$FLUTTER_CACHE"
+  # Latest stable = first release entry whose channel is "stable"
   VERSION=$(curl -s https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json \
-    | grep -o '"stable"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*:"//;s/"//')
+    | grep -A2 '"channel": "stable"' \
+    | grep -o '"version": "[^"]*"' | head -1 | cut -d'"' -f4)
   # Fallback if version detection fails
   if [ -z "$VERSION" ]; then
-    VERSION="3.27.4"
+    VERSION="3.44.9"
     echo "==> Version detection failed, using pinned fallback: $VERSION"
   fi
   echo "==> Latest stable Flutter: $VERSION"
