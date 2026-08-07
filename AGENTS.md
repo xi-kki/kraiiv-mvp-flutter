@@ -83,6 +83,10 @@ lib/
 - KTC balance card + Connect Wallet, Available Rewards
   (Spa Treatment Voucher, Gourmet Dessert Box, Local Market Voucher,
   Convert KTC to Cash), earning history.
+- **Redemption is live**: confirm → KTC deducted → instant `KRV-XXXX-XXXX`
+  voucher code (copyable) → recorded in Redemption History. Insufficient
+  balance shows a friendly prompt. "Convert KTC to Cash" stays post-MVP
+  (needs payment rails).
 
 ### Klia Chat
 - "Ask Klia about nutrition..." with keyword answers
@@ -120,7 +124,6 @@ Training expansion (CHOWNET + Kaggle datasets, Neo task) lives in
 ## How to Run
 
 ```bash
-cd "C:/Users/HP/Kraiiv-MVP-Flutter"
 flutter pub get
 flutter run                # or: flutter run -d chrome
 flutter build web --release
@@ -129,7 +132,8 @@ flutter build web --release
 ## Verification
 
 - `flutter analyze` — clean
-- `flutter test` — smoke test (splash brand renders, routes away)
+- `flutter test` — splash smoke test + redemption unit tests
+  (deduction, voucher format, insufficient balance, ordering)
 - Web: `python -m http.server 8090` in `build/web`, then browse
   `http://localhost:8090`
 
@@ -138,5 +142,6 @@ flutter build web --release
 - [ ] Neo-trained expanded model (60–80 African foods) into model-api
 - [ ] Firebase Auth integration (replace profile editing)
 - [ ] Cloud sync (meals, streaks, tokens)
-- [ ] KTC redemption (airtime, data, groceries)
+- [ ] KTC redemption partner payout (airtime, data, groceries) behind
+      the voucher codes
 - [ ] Camera AI vision improvements (bounding boxes, multi-food plates)

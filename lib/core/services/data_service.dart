@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:hive/hive.dart';
 
 /// Central data service managing all persistent state via Hive boxes.
@@ -280,6 +282,53 @@ class DataService {
     });
     if (history.length > 50) history.removeRange(50, history.length);
     await _tokens.put('history', history);
+  }
+
+  // ─── Redemptions ─────────────────────────────────────────
+  static List<Map<String, dynamic>> get redemptions {
+    final raw = _tokens.get('redemptions', defaultValue: <Map>[]);
+    return List<Map<String, dynamic>>.from(
+      (raw as List).map((e) => Map<String, dynamic>.from(e as Map)),
+    );
+  }
+
+  /// Redeems [cost] KTC for [title]: validates the balance, deducts KTC,
+  /// generates a voucher code, and records the redemption.
+  ///
+  /// Returns the redemption record (with its [code]) or `null` when the
+  /// balance is insufficient (nothing is changed in that case).
+  static Future<Map<String, dynamic>?> redeemKTC({
+    required int cost,
+    required String title,
+  }) async {
+    if (cost <= 0) return null;
+    if (ktcBalance < cost) return null;
+
+    await _tokens.put('balance', ktcBalance - cost);
+
+    final record = <String, dynamic>{
+      'title': title,
+      'cost': cost,
+      'code': _generateVoucherCode(),
+      'timestamp': DateTime.now().toIso8601String(),
+    };
+
+    final all = redemptions;
+    all.insert(0, record);
+    if (all.length > 50) all.removeRange(50, all.length);
+    await _tokens.put('redemptions', all);
+    return record;
+  }
+
+  /// Random `KRV-XXXX-XXXX` voucher code, avoiding ambiguous characters.
+  static String _generateVoucherCode() {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final rand = Random.secure();
+    String block() => List.generate(
+          4,
+          (_) => alphabet[rand.nextInt(alphabet.length)],
+        ).join();
+    return 'KRV-${block()}-${block()}';
   }
 
   // ─── Reset / Debug ─────────────────────────────────────────

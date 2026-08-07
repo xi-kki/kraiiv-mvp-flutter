@@ -15,8 +15,8 @@ and a stats-rich profile. All icons from [lucide.dev](https://lucide.dev)
 - **Food Scanner**: real AI detection of 41 Nigerian foods
   (Nigerian Food Lens model), calories/protein/health insight,
   offline keyword fallback
-- **Rewards Hub**: KTC balance, Connect Wallet, redeemable rewards,
-  earning history
+- **Rewards Hub**: KTC balance, Connect Wallet, redeemable rewards
+  (instant `KRV-XXXX-XXXX` voucher codes), redemption + earning history
 - **Klia Chat**: nutrition coach with keyword answers
 - **My Profile**: weekly progress chart, habit categories, achievements,
   editable profile

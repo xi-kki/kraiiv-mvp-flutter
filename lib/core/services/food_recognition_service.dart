@@ -50,7 +50,9 @@ class FoodRecognitionService {
     defaultValue: 'http://localhost:8000',
   );
 
-  static const Duration _timeout = Duration(seconds: 10);
+  /// Short timeout so the scanner falls back to the local matcher quickly
+  /// when the model API is unreachable (e.g. in the deployed web build).
+  static const Duration _timeout = Duration(seconds: 4);
 
   /// Sends a photo to the model API and returns detected foods,
   /// or an empty list when the API is unavailable.
