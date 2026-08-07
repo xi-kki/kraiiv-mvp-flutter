@@ -1,4 +1,6 @@
 {
+  "installCommand": "echo 'Dependencies resolved inside build.sh (Flutter SDK is not preinstalled on Vercel)'",
+  "buildCommand": "bash build.sh",
   "outputDirectory": "build/web",
   "regions": ["iad1"],
   "headers": [
