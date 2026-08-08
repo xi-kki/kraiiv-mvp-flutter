@@ -161,6 +161,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildAchievements(),
             const SizedBox(height: 8),
             _buildNudgeToggle(),
+            const SizedBox(height: 24),
+            _buildStartOverButton(),
           ],
         ),
       ),
@@ -703,5 +705,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
         },
       ),
     );
+  }
+
+  Widget _buildStartOverButton() {
+    return Center(
+      child: TextButton.icon(
+        onPressed: _confirmStartOver,
+        icon: const Icon(
+          LucideIcons.rotateCcw,
+          size: 16,
+          color: AppTheme.textMuted,
+        ),
+        label: const Text(
+          'Start over from the beginning',
+          style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+        ),
+      ),
+    );
+  }
+
+  /// Wipes all local data (profile, meals, streaks, KTC, mini goals) and
+  /// replays the welcome flow: splash → onboarding questions.
+  Future<void> _confirmStartOver() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Start over?'),
+        content: const Text(
+          'This clears your profile, logged meals, streaks, KTC balance and '
+          'mini-goal progress, then takes you back to the welcome screen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Start over'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await DataService.resetAll();
+    if (!mounted) return;
+    context.go('/splash');
   }
 }

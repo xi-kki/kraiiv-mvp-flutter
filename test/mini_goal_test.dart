@@ -104,4 +104,27 @@ void main() {
       expect(done.any((g) => g.id == goal.id), isTrue);
     });
   });
+
+  group('Reset', () {
+    test('resetAll clears profile, tokens, meals and mini goals', () async {
+      await DataService.setOnboardingComplete();
+      await DataService.setUserName('Xi-kki');
+      DataService.setHealthGoal('Feel more energized');
+      final goal = DataService.miniGoalPlan.first;
+      await DataService.completeMiniGoal(goal.id);
+      expect(DataService.isOnboardingComplete, isTrue);
+      expect(DataService.userName, 'Xi-kki');
+      expect(DataService.miniGoalDoneToday(goal.id), isTrue);
+
+      await DataService.resetAll();
+
+      expect(DataService.isOnboardingComplete, isFalse);
+      expect(DataService.userName, '');
+      expect(DataService.healthGoal, 'Eat more mindfully',
+          reason: 'defaults are restored after reset');
+      expect(DataService.ktcBalance, 0);
+      expect(DataService.miniGoalsDoneThisWeek, 0);
+      expect(DataService.miniGoalDoneToday(goal.id), isFalse);
+    });
+  });
 }
