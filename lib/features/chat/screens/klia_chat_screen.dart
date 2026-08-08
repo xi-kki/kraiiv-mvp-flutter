@@ -124,10 +124,12 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: const Icon(LucideIcons.arrowLeft),
-        ),
+        leading: context.canPop()
+            ? IconButton(
+                onPressed: () => context.pop(),
+                icon: const Icon(LucideIcons.arrowLeft),
+              )
+            : null,
         titleSpacing: 0,
         title: Row(
           children: [

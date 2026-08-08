@@ -173,10 +173,12 @@ class _RewardsScreenState extends State<RewardsScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: const Icon(LucideIcons.arrowLeft),
-        ),
+        leading: context.canPop()
+            ? IconButton(
+                onPressed: () => context.pop(),
+                icon: const Icon(LucideIcons.arrowLeft),
+              )
+            : null,
         title: const Text('Rewards Hub'),
       ),
       body: SafeArea(

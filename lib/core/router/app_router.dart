@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/widgets/kraiiv_shell.dart';
 import '../../data/repository/food_repository.dart';
 import '../../features/splash/screens/splash_screen.dart';
 import '../../features/onboarding/screens/onboarding_screen.dart';
@@ -25,9 +26,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const HomeScreen(),
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) =>
+            KraiivShell(navigationShell: navigationShell),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/home',
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/chat',
+                builder: (context, state) => const KliaChatScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/rewards',
+                builder: (context, state) => const RewardsScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/profile',
+                builder: (context, state) => const ProfileScreen(),
+              ),
+            ],
+          ),
+        ],
       ),
       GoRoute(
         path: '/scanner',
@@ -50,18 +85,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             aiConfidence: payload.aiConfidence,
           );
         },
-      ),
-      GoRoute(
-        path: '/rewards',
-        builder: (context, state) => const RewardsScreen(),
-      ),
-      GoRoute(
-        path: '/chat',
-        builder: (context, state) => const KliaChatScreen(),
-      ),
-      GoRoute(
-        path: '/profile',
-        builder: (context, state) => const ProfileScreen(),
       ),
       GoRoute(
         path: '/progress',

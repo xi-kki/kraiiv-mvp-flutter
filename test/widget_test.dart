@@ -62,4 +62,41 @@ void main() {
     await tester.pump();
     expect(DataService.miniGoalDoneToday(goal.id), isTrue);
   });
+
+  testWidgets(
+      'bottom navigation switches between Home, Chat, Rewards and Profile',
+      (tester) async {
+    await tester.runAsync(() async {
+      await DataService.setOnboardingComplete();
+      await DataService.setUserName('Xi-kki');
+    });
+
+    await tester.pumpWidget(const ProviderScope(child: KraiivApp()));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+
+    // Bottom bar is present with all four tabs.
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(find.byType(NavigationDestination), findsNWidgets(4));
+
+    // Rewards tab.
+    await tester.tap(find.text('Rewards'));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Rewards Hub'), findsOneWidget);
+
+    // Chat tab.
+    await tester.tap(find.text('Chat'));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('Klia'), findsWidgets);
+
+    // Profile tab.
+    await tester.tap(find.text('Profile'));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.text('My Profile'), findsOneWidget);
+
+    // Back to Home.
+    await tester.tap(find.text('Home'));
+    await tester.pump(const Duration(milliseconds: 600));
+    expect(find.textContaining('Xi-kki!'), findsOneWidget);
+  });
 }

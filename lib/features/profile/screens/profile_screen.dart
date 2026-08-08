@@ -132,10 +132,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          onPressed: () => context.pop(),
-          icon: const Icon(LucideIcons.arrowLeft),
-        ),
+        leading: context.canPop()
+            ? IconButton(
+                onPressed: () => context.pop(),
+                icon: const Icon(LucideIcons.arrowLeft),
+              )
+            : null,
         title: const Text('My Profile'),
         actions: [
           IconButton(
