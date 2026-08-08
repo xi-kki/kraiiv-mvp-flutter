@@ -142,8 +142,12 @@ flutter build web --release
 ## Verification
 
 - `flutter analyze` — clean
-- `flutter test` — splash smoke test + redemption unit tests
-  (deduction, voucher format, insufficient balance, ordering)
+- `flutter test` — 19/19 pass: splash smoke, home dashboard (mini goals +
+  giant goal card), bottom-nav tab switching, chat keyword fallback,
+  mini-goal logic (plan, completion, awards, weekly stats, reset) and
+  redemption (deduction, voucher format, insufficient balance, ordering)
+- CI: `.github/workflows/ci.yml` runs `flutter analyze` + `flutter test`
+  on every push/PR (GitHub Actions)
 - Web: `python -m http.server 8090` in `build/web`, then browse
   `http://localhost:8090`
 

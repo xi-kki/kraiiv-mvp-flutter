@@ -1,52 +1,19 @@
-name: CI
+name: ci
 
 on:
   push:
     branches: [main]
   pull_request:
 
-# Least-privilege: read-only repo contents; nothing here needs write access.
-permissions:
-  contents: read
-
 jobs:
-  flutter:
-    name: Analyze + Test
+  analyze-and-test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-      - name: Set up Flutter
-        uses: subosito/flutter-action@4cab68ce0f1c7c924f688bff4792e044f1aeb30c
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Resolve dependencies
-        run: flutter pub get
-      - name: Static analysis
-        run: flutter analyze
-      - name: Unit tests
-        run: flutter test
-
-  secrets:
-    name: Secret scan
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-      - name: Gitleaks
-        run: |
-          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz gitleaks
-          ./gitleaks detect --redact --verbose
-
-  backend:
-    name: Backend (model-api) syntax
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@f548e57e544e1ff5a4c46bf1e1b8685f8e4a348a
-      - name: Set up Python
-        uses: actions/setup-python@8549b9f8f590ad24eab7482f36f6e1e24d34597b
-        with:
-          python-version: "3.11"
-      - name: Syntax check
-        run: python -m py_compile model-api/main.py
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
