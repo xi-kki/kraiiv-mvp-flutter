@@ -152,6 +152,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildStepArt(),
+                    const SizedBox(height: 18),
                     _buildKliaBubble(),
                     const SizedBox(height: 16),
                     ..._buildStepInput(),
@@ -204,6 +206,65 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
     );
   }
+  /// Illustrative header for each step — a green-tinted emblem echoing the
+  /// prototype's per-step artwork without shipping external image assets.
+  IconData get _stepIcon => switch (_step) {
+        1 => LucideIcons.user,
+        2 => LucideIcons.salad,
+        3 => LucideIcons.target,
+        4 => LucideIcons.mapPin,
+        _ => LucideIcons.bell,
+      };
+
+  Widget _buildStepArt() {
+    return Center(
+      child: SizedBox(
+        width: 150,
+        height: 150,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Soft outer ring for depth.
+            Container(
+              width: 150,
+              height: 150,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppTheme.primaryGreen.withValues(alpha: 0.12),
+                  width: 10,
+                ),
+              ),
+            ),
+            Container(
+              width: 116,
+              height: 116,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    AppTheme.primaryGreen.withValues(alpha: 0.20),
+                    AppTheme.primaryGreen.withValues(alpha: 0.06),
+                  ],
+                ),
+                border: Border.all(
+                  color: AppTheme.primaryGreen.withValues(alpha: 0.30),
+                ),
+              ),
+              child: Icon(
+                _stepIcon,
+                size: 52,
+                color: AppTheme.primaryGreen,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
 
   Widget _buildKliaBubble() {
     return Row(
