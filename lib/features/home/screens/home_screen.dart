@@ -466,6 +466,8 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
+            _buildGiantGoalCard(),
+            const SizedBox(height: 20),
             _buildProgressCard(completed, weekly),
             const SizedBox(height: 24),
             _buildSectionTitle(
@@ -572,6 +574,90 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+
+  /// The user's "giant goal" (from onboarding) with today's progress toward
+  /// it — daily goals + mini goals both chip into this one headline.
+  Widget _buildGiantGoalCard() {
+    final goal = DataService.healthGoal;
+    final dailyDone =
+        DataService.goalsCompletedToday.where((c) => c).length;
+    final plan = DataService.miniGoalPlan;
+    final miniDone =
+        plan.where((g) => DataService.miniGoalDoneToday(g.id)).length;
+    final done = dailyDone + miniDone;
+    final total = DataService.dailyGoals.length + plan.length;
+    final progress = total == 0 ? 0.0 : done / total;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppTheme.primaryGreen.withValues(alpha: 0.10),
+            AppTheme.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: AppTheme.primaryGreen.withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                LucideIcons.target,
+                color: AppTheme.primaryGreenDark,
+                size: 20,
+              ),
+              const SizedBox(width: 8),
+              const Text(
+                'Your Giant Goal',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const Spacer(),
+              Text(
+                '$done/$total today',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            goal,
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.primaryGreenDark,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: AppTheme.border,
+              color: AppTheme.primaryGreen,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
   Widget _buildProgressCard(
       List<bool> completed, List<int> weekly) {
     final done = completed.where((c) => c).length;

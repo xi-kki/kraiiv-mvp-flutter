@@ -52,6 +52,8 @@ void main() {
     // Greeting text is time-of-day dependent, so match on the name only.
     expect(find.textContaining('Xi-kki!'), findsOneWidget);
     expect(find.text('Your Mini Goals'), findsOneWidget);
+    expect(find.text('Your Giant Goal'), findsOneWidget);
+    expect(find.text('Eat more mindfully'), findsOneWidget);
     expect(find.text('Today\'s Goals'), findsOneWidget);
 
     // Tapping a mini goal records it as done for today. The KTC award

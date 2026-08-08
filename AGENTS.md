@@ -63,6 +63,9 @@ lib/
 - Time-of-day greeting + "Let's make today's intentional"
 - **Your Progress** card: today ring (goals done), weekly mini bars,
   "View Details" → full progress screen
+- **Your Giant Goal**: the health goal from onboarding, shown as the
+  dashboard headline with today's progress (daily goals + mini goals both
+  chip into it).
 - **Today's Goals** (4, matching the video):
   - Log a local and seasonal meal → +15 KTC
   - Try a new vegetable from the farmer's market → +20 KTC
