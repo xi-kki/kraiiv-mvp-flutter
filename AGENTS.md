@@ -96,10 +96,17 @@ lib/
   (needs payment rails).
 
 ### Klia Chat
+### Klia Chat
 - "Ask Klia about nutrition..." — real AI answers via the model API's
   `/chat` endpoint (Groq LLM, key from env/secret — never in code).
   Falls back to keyword answers (protein, calories, fibre, hydration,
   local foods, mindful eating, KTC) when the API is unreachable.
+
+### Nearby Local Food (home)
+- Markets/farms near the user's onboarding city (the prototype's
+  location-driven recommendation). Overpass API first (fresh, exact
+  coords), curated real markets per city as fallback; tap a place to
+  open it in Google Maps. Section hides itself when no data.
 
 ### My Profile
 - Health Goal / Preferred / Location rows (editable via FilePen),

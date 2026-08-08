@@ -1,110 +1,38 @@
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/material.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz_data;
+import 'notification_platform_stub.dart'
+    if (dart.library.js_interop) 'notification_platform_web.dart'
+    if (dart.library.io) 'notification_platform_mobile.dart' as platform;
 
+/// Cross-platform notifications.
+///
+/// Mobile (Android/iOS): local scheduled reminders via
+/// flutter_local_notifications. Web: the browser Notifications API — the
+/// opt-in permission request is wired into onboarding step 5 and the
+/// profile "Daily nudges" toggle. True background push on web needs a
+/// push server (FCM/VAPID) and is post-MVP.
 class NotificationService {
-  static final FlutterLocalNotificationsPlugin _plugin =
-      FlutterLocalNotificationsPlugin();
+  static Future<void> initialize() => platform.NotificationServicePlatform.initialize();
 
-  static bool _initialized = false;
+  /// Platform-appropriate daily nudges: mobile schedules the standard
+  /// local reminders; web requests browser permission (background
+  /// scheduling is not possible without a push server).
+  static Future<bool> enableDailyNudges() =>
+      platform.NotificationServicePlatform.enableDailyNudges();
 
-  static Future<void> initialize() async {
-    if (_initialized) return;
+  static Future<void> scheduleDailyReminder({
+    required int hour,
+    required String message,
+  }) =>
+      platform.NotificationServicePlatform.scheduleDailyReminder(
+        hour: hour,
+        message: message,
+      );
 
-    // Initialize timezone data
-    tz_data.initializeTimeZones();
+  static Future<void> scheduleStandardReminders() =>
+      platform.NotificationServicePlatform.scheduleStandardReminders();
 
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
+  static Future<void> cancelAll() =>
+      platform.NotificationServicePlatform.cancelAll();
 
-    await _plugin.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (details) {
-        // Handle notification tap
-        debugPrint('Notification tapped: ${details.payload}');
-      },
-    );
-
-    _initialized = true;
-  }
-
-  /// Schedule a daily reminder at the specified hour (24h format).
-  static Future<void> scheduleDailyReminder({required int hour, required String message}) async {
-    if (!_initialized) return;
-
-    final now = DateTime.now();
-    var scheduledDate = DateTime(now.year, now.month, now.day, hour, 0, 0);
-    if (scheduledDate.isBefore(now)) {
-      scheduledDate = scheduledDate.add(const Duration(days: 1));
-    }
-
-    // Convert to TZDateTime
-    final tzScheduledDate = tz.TZDateTime.from(scheduledDate, tz.local);
-
-    const androidDetails = AndroidNotificationDetails(
-      'kraiiv_reminders',
-      'Meal Reminders',
-      channelDescription: 'Daily reminders to log your meals',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-      icon: '@mipmap/ic_launcher',
-    );
-
-    const details = NotificationDetails(android: androidDetails);
-
-    await _plugin.zonedSchedule(
-      hour, // notification id = hour
-      'Kraiiv',
-      message,
-      tzScheduledDate,
-      details,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
-      payload: 'daily_reminder',
-    );
-  }
-
-  /// Schedule standard daily reminders (9 AM, 1 PM, 6 PM mini-goals, 7 PM).
-  static Future<void> scheduleStandardReminders() async {
-    final messages = [
-      'Good morning! What\'s for breakfast today?',
-      'Lunchtime! Don\'t forget to log your meal.',
-      'Mini-goal time — drink water, move, or eat mindfully to earn KTC.',
-      'Dinner time — what did you eat today?',
-    ];
-
-    final hours = [9, 13, 18, 19]; // 9 AM, 1 PM, 6 PM, 7 PM
-
-    for (int i = 0; i < hours.length; i++) {
-      await scheduleDailyReminder(hour: hours[i], message: messages[i]);
-    }
-  }
-
-  /// Cancel all scheduled reminders
-  static Future<void> cancelAll() async {
-    await _plugin.cancelAll();
-  }
-
-  /// Show an immediate test notification
-  static Future<void> showTestNotification() async {
-    if (!_initialized) return;
-
-    const androidDetails = AndroidNotificationDetails(
-      'kraiiv_reminders',
-      'Meal Reminders',
-      channelDescription: 'Daily reminders to log your meals',
-      importance: Importance.defaultImportance,
-      priority: Priority.defaultPriority,
-    );
-
-    const details = NotificationDetails(android: androidDetails);
-
-    await _plugin.show(
-      0,
-      'Kraiiv',
-      'This is a test notification — Klia is watching over your meals!',
-      details,
-    );
-  }
+  static Future<void> showTestNotification() =>
+      platform.NotificationServicePlatform.showTestNotification();
 }

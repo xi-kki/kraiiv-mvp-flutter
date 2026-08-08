@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import '../../../core/services/data_service.dart';
@@ -127,8 +126,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     _notificationsChosen = true;
 
     await DataService.setNotificationsEnabled(allowNotifications);
-    if (allowNotifications && !kIsWeb) {
-      await NotificationService.scheduleStandardReminders();
+    if (allowNotifications) {
+      await NotificationService.enableDailyNudges();
     }
     await DataService.setOnboardingComplete();
     if (!mounted) return;

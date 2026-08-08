@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/models/mini_goal.dart';
 import '../../../core/services/data_service.dart';
+import '../../../core/services/nearby_places_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repository/recipe_repository.dart';
 
@@ -16,6 +18,56 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  /// Nearby markets/farms for the user's city; null until the first load
+  /// resolves. Empty stays null so the section renders nothing while we
+  /// have no data (the service falls back to curated markets itself).
+  List<NearbyPlace>? _nearbyPlaces;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNearby();
+  }
+
+  Future<void> _loadNearby() async {
+    final places = await NearbyPlacesService.fetchNearby(DataService.location);
+    if (!mounted) return;
+    setState(() => _nearbyPlaces = places);
+  }
+
+  Future<void> _openMaps(NearbyPlace place) async {
+    final url = Uri.parse(place.mapsUrl);
+    final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+    if (!launched) debugPrint('Could not open maps for ${place.name}');
+  }
+
+  String _kindLabel(String kind) {
+    switch (kind) {
+      case 'marketplace':
+        return 'Local market';
+      case 'greengrocer':
+        return 'Fresh produce';
+      case 'farm':
+        return 'Farm shop';
+      case 'organic':
+        return 'Organic';
+      default:
+        return 'Local food';
+    }
+  }
+
+  IconData _placeIcon(String kind) {
+    switch (kind) {
+      case 'greengrocer':
+        return LucideIcons.carrot;
+      case 'farm':
+        return LucideIcons.shoppingBasket;
+      case 'organic':
+        return LucideIcons.leaf;
+      default:
+        return LucideIcons.store;
+    }
+  }
   String _greeting() {
     final hour = DateTime.now().hour;
     if (hour < 12) return 'Good morning';
@@ -493,6 +545,8 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             const SizedBox(height: 12),
             _buildRecipeCarousel(),
+            const SizedBox(height: 22),
+            _buildNearbySection(),
           ],
         ),
       ),
@@ -952,6 +1006,100 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+  /// "Nearby Local Food" — markets/farms near the user's city (the
+  /// prototype's location-driven recommendation). Renders nothing until
+  /// data arrives and nothing at all if the service comes back empty.
+  Widget _buildNearbySection() {
+    final places = _nearbyPlaces;
+    if (places == null || places.isEmpty) return const SizedBox.shrink();
+    final city = DataService.location.trim().isEmpty
+        ? 'your city'
+        : DataService.location;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(
+          icon: LucideIcons.store,
+          iconColor: AppTheme.primaryGreen,
+          title: 'Nearby Local Food',
+          trailing: city,
+        ),
+        const SizedBox(height: 12),
+        ...places.map(_buildPlaceRow),
+      ],
+    );
+  }
+
+  Widget _buildPlaceRow(NearbyPlace place) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(18),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => _openMaps(place),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primaryGreen.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    _placeIcon(place.kind),
+                    color: AppTheme.primaryGreen,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        place.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${_kindLabel(place.kind)} · '
+                        '${place.distanceKm.toStringAsFixed(1)} km',
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(
+                  LucideIcons.chevronRight,
+                  size: 16,
+                  color: AppTheme.textMuted,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
 
   IconData _recipeIcon(String name) {
     switch (name) {

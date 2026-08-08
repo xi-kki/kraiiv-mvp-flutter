@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:go_router/go_router.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import '../../../core/services/data_service.dart';
@@ -697,12 +696,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         onChanged: (enabled) async {
           setState(() {});
           await DataService.setNotificationsEnabled(enabled);
-          if (!kIsWeb) {
-            if (enabled) {
-              await NotificationService.scheduleStandardReminders();
-            } else {
-              await NotificationService.cancelAll();
-            }
+          if (enabled) {
+            await NotificationService.enableDailyNudges();
+          } else {
+            await NotificationService.cancelAll();
           }
         },
       ),

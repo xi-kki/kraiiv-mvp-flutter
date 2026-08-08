@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -16,10 +15,8 @@ void main() async {
   // Initialize data service (handles all boxes)
   await DataService.initialize();
 
-  // Initialize notifications (skip on web)
-  if (!kIsWeb) {
-    await NotificationService.initialize();
-  }
+  // Initialize notifications (web impl is a no-op / browser API).
+  await NotificationService.initialize();
 
   runApp(
     const ProviderScope(
