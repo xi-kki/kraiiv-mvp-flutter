@@ -65,15 +65,16 @@ class NotificationService {
     );
   }
 
-  /// Schedule standard daily reminders (9 AM, 1 PM, 7 PM)
+  /// Schedule standard daily reminders (9 AM, 1 PM, 6 PM mini-goals, 7 PM).
   static Future<void> scheduleStandardReminders() async {
     final messages = [
-      '🌅 Good morning! What\'s for breakfast today?',
-      '🍲 Lunchtime! Don\'t forget to log your meal.',
-      '🌆 Dinner time — what did you eat today?',
+      'Good morning! What\'s for breakfast today?',
+      'Lunchtime! Don\'t forget to log your meal.',
+      'Mini-goal time — drink water, move, or eat mindfully to earn KTC.',
+      'Dinner time — what did you eat today?',
     ];
 
-    final hours = [9, 13, 19]; // 9 AM, 1 PM, 7 PM
+    final hours = [9, 13, 18, 19]; // 9 AM, 1 PM, 6 PM, 7 PM
 
     for (int i = 0; i < hours.length; i++) {
       await scheduleDailyReminder(hour: hours[i], message: messages[i]);
@@ -101,7 +102,7 @@ class NotificationService {
 
     await _plugin.show(
       0,
-      'Kraiiv 🌿',
+      'Kraiiv',
       'This is a test notification — Klia is watching over your meals!',
       details,
     );

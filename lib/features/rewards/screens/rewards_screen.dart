@@ -189,6 +189,8 @@ class _RewardsScreenState extends State<RewardsScreen> {
             ),
             const SizedBox(height: 16),
             _buildBalanceCard(balance),
+            const SizedBox(height: 14),
+            _buildMiniGoalStats(),
             const SizedBox(height: 24),
             const Text(
               'Available Rewards',
@@ -229,6 +231,89 @@ class _RewardsScreenState extends State<RewardsScreen> {
               const SizedBox(height: 12),
               ...history.take(8).map((entry) => _buildHistoryRow(entry)),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMiniGoalStats() {
+    final done = DataService.miniGoalsDoneThisWeek;
+    final total = DataService.miniGoalsTotalThisWeek;
+    final points = DataService.miniGoalPointsThisWeek;
+    final streak = DataService.miniGoalStreak;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(LucideIcons.listChecks,
+                  color: AppTheme.primaryGreen, size: 18),
+              SizedBox(width: 8),
+              Text(
+                'This Week from Mini Goals',
+                style: TextStyle(
+                  fontSize: 14.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textDark,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _statTile('$done/$total', 'actions done'),
+              const SizedBox(width: 12),
+              _statTile('+$points', 'KTC earned'),
+              const SizedBox(width: 12),
+              _statTile('$streak', 'day streak'),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Dummy points for now — stablecoins are coming later.',
+            style: TextStyle(fontSize: 11.5, color: AppTheme.textMuted),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statTile(String value, String label) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: Column(
+          children: [
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: AppTheme.primaryGreenDark,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 10.5,
+                color: AppTheme.textMuted,
+              ),
+            ),
           ],
         ),
       ),

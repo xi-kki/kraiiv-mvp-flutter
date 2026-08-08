@@ -433,53 +433,145 @@ class _ProfileScreenState extends State<ProfileScreen> {
               final (label, count, icon) = c;
               final fraction = count / maxCount;
               return Padding(
-                padding: const EdgeInsets.symmetric(vertical: 7),
-                child: Row(
-                  children: [
-                    Icon(icon, color: AppTheme.gold, size: 17),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 66,
-                      child: Text(
-                        label,
-                        style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.textDark,
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: InkWell(
+                  onTap: () => _showCategoryDetails(label, count, icon),
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 3),
+                    child: Row(
+                      children: [
+                        Icon(icon, color: AppTheme.gold, size: 17),
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 66,
+                          child: Text(
+                            label,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(5),
-                        child: LinearProgressIndicator(
-                          value: fraction,
-                          minHeight: 10,
-                          backgroundColor: AppTheme.border,
-                          color: AppTheme.primaryGreen,
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: LinearProgressIndicator(
+                              value: fraction,
+                              minHeight: 10,
+                              backgroundColor: AppTheme.border,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    SizedBox(
-                      width: 34,
-                      child: Text(
-                        '$count',
-                        textAlign: TextAlign.right,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: AppTheme.primaryGreenDark,
+                        const SizedBox(width: 12),
+                        SizedBox(
+                          width: 34,
+                          child: Text(
+                            '$count',
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: AppTheme.primaryGreenDark,
+                            ),
+                          ),
                         ),
-                      ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             }).toList(),
           ),
         ),
       ],
+    );
+  }
+
+  void _showCategoryDetails(String label, int count, IconData icon) {
+    final (description, tip, value) = switch (label) {
+      'Food' => (
+          'Meals logged in Kraiiv — the more you log, the better Klia can guide you.',
+          'Log at least one local meal today to keep your streak alive.',
+          '$count meals logged',
+        ),
+      'Mindful' => (
+          'Meals scored 8/10 or higher — your healthiest, most balanced choices.',
+          'Aim for one mindful meal: no distractions, slow bites, vegetables first.',
+          '$count healthy meals',
+        ),
+      'Local' => (
+          'Local and seasonal meals support Nigerian farmers and cut food miles.',
+          'Try a farmer\'s market vegetable you have never cooked before.',
+          '$count local meals',
+        ),
+      _ => (
+          'Consecutive days with at least one action logged in Kraiiv.',
+          'Do one small thing today — a mini goal or a meal log — to keep it going.',
+          '${DataService.miniGoalStreak} day mini-goal streak',
+        ),
+    };
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(icon, color: AppTheme.gold, size: 20),
+                  const SizedBox(width: 10),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryGreenDark,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                description,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  height: 1.45,
+                  color: AppTheme.textDark,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Tip: $tip',
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  fontStyle: FontStyle.italic,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

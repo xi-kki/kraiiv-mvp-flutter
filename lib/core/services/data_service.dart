@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:hive/hive.dart';
 
+import '../../core/models/mini_goal.dart';
+
 /// Central data service managing all persistent state via Hive boxes.
 ///
 /// Boxes:
@@ -9,17 +11,20 @@ import 'package:hive/hive.dart';
 ///   - 'meals'    → list of logged meals with timestamps + nutrition
 ///   - 'streaks'  → streak count, last log date, best streak
 ///   - 'tokens'   → KTC token balance, earning history
+///   - 'miniGoals' → weekly mini-goal plan, per-day completions
 class DataService {
   static late Box _settings;
   static late Box _meals;
   static late Box _streaks;
   static late Box _tokens;
+  static late Box _mini;
 
   static Future<void> initialize() async {
     _settings = await Hive.openBox('settings');
     _meals = await Hive.openBox('meals');
     _streaks = await Hive.openBox('streaks');
     _tokens = await Hive.openBox('tokens');
+    _mini = await Hive.openBox('miniGoals');
   }
 
   // ─── Onboarding ────────────────────────────────────────────
@@ -331,11 +336,164 @@ class DataService {
     return 'KRV-${block()}-${block()}';
   }
 
+  // ─── Mini Goals (weekly plan chipped from the giant goal) ──
+  /// Number of mini goals active per week. Each is completable once per day.
+  static const int miniGoalsPerWeek = 5;
+
+  /// ISO week key of [date] in the form '2026-W32' (Monday-start weeks).
+  static (int, int) _isoWeek(DateTime date) {
+    final thursday = date.add(Duration(days: 4 - date.weekday));
+    final year = thursday.year;
+    final jan1 = DateTime(year, 1, 1);
+    final firstThursday = jan1.add(Duration(days: (4 - jan1.weekday) % 7));
+    final week = (thursday.difference(firstThursday).inDays / 7).floor() + 1;
+    return (year, week);
+  }
+
+  static String get _isoWeekKey {
+    final (year, week) = _isoWeek(DateTime.now());
+    return '$year-W${week.toString().padLeft(2, '0')}';
+  }
+
+  static DateTime get _weekStart {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day)
+        .subtract(Duration(days: now.weekday - 1));
+  }
+
+  static Map<String, int> get _miniCompletions =>
+      Map<String, int>.from(
+          _mini.get('completions', defaultValue: <String, int>{}));
+
+  /// The five mini goals active for the current week, rotated by week so
+  /// returning users see variety. Lazily (re)generated when the week rolls
+  /// over or the user's health goal changes.
+  static List<MiniGoal> get miniGoalPlan {
+    _ensureMiniPlan();
+    final raw = _mini.get('plan', defaultValue: <Map>[]) as List;
+    return [
+      for (final e in raw) MiniGoal.fromJson(Map<String, dynamic>.from(e as Map)),
+    ];
+  }
+
+  static void _ensureMiniPlan() {
+    // Key the plan by both week and goal: editing the health goal mid-week
+    // (profile screen) must swap in a matching plan, not keep the stale one.
+    final planKey = '$_isoWeekKey|${healthGoal.trim()}';
+    if (_mini.get('plan_key') == planKey) return;
+    final library = _libraryFor(healthGoal);
+    final offset = _isoWeekKey.hashCode.abs() % library.length;
+    final plan = <MiniGoal>[
+      for (var i = 0; i < miniGoalsPerWeek; i++)
+        library[(offset + i) % library.length],
+    ];
+    _mini.putAll({
+      'plan_key': planKey,
+      'plan': [for (final g in plan) g.toJson()],
+    });
+  }
+
+  static List<MiniGoal> _libraryFor(String goal) {
+    final key = goal.trim().toLowerCase();
+    if (key.contains('energ')) return miniGoalLibrary['energy']!;
+    if (key.contains('mindful')) return miniGoalLibrary['mindful']!;
+    if (key.contains('health')) return miniGoalLibrary['health']!;
+    if (key.contains('local')) return miniGoalLibrary['local']!;
+    return miniGoalLibrary['general']!;
+  }
+
+  static DateTime? _completionDate(String key) {
+    // Keys are '$goalId:2026-08-08T00:00:00.000' — the timestamp contains
+    // colons, so split from the FIRST one (goal ids never contain ':').
+    final date = DateTime.tryParse(key.substring(key.indexOf(':') + 1));
+    if (date == null) return null;
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  /// Completions recorded inside the current ISO week (goalId → points).
+  static Map<String, int> get _miniWeekCompletions {
+    final start = _weekStart;
+    return Map<String, int>.fromEntries(_miniCompletions.entries.where((e) {
+      final date = _completionDate(e.key);
+      return date != null && !date.isBefore(start);
+    }));
+  }
+
+  static bool miniGoalDoneToday(String id) =>
+      _miniCompletions.containsKey('$id:${_today().toIso8601String()}');
+
+  /// Days this week the given mini goal was completed (0-7).
+  static int miniGoalDoneThisWeek(String id) =>
+      _miniWeekCompletions.keys.where((k) => k.startsWith('$id:')).length;
+
+  static int get miniGoalsDoneThisWeek => _miniWeekCompletions.length;
+  static int get miniGoalsTotalThisWeek => miniGoalsPerWeek * 7;
+  static int get miniGoalPointsThisWeek =>
+      _miniWeekCompletions.values.fold(0, (a, b) => a + b);
+
+  /// Consecutive days (ending today) with at least one mini goal completed.
+  static int get miniGoalStreak {
+    final keys = _miniCompletions.keys;
+    var streak = 0;
+    var day = _today();
+    while (keys.any((k) => k.endsWith(':${day.toIso8601String()}'))) {
+      streak++;
+      day = day.subtract(const Duration(days: 1));
+    }
+    return streak;
+  }
+
+  /// Marks a mini goal complete for today and awards its KTC points
+  /// (dummy currency — later swapped for stablecoins at _awardTokens).
+  /// Returns the amount awarded (0 if already done today or unknown goal).
+  static Future<int> completeMiniGoal(String id) async {
+    _ensureMiniPlan();
+    MiniGoal? goal;
+    for (final g in miniGoalPlan) {
+      if (g.id == id) {
+        goal = g;
+        break;
+      }
+    }
+    if (goal == null) return 0;
+
+    final key = '$id:${_today().toIso8601String()}';
+    final completions = _miniCompletions;
+    if (completions.containsKey(key)) return 0;
+    completions[key] = goal.points;
+    await _mini.put('completions', completions);
+
+    await _awardTokens(goal.points, reason: 'Mini goal: ${goal.title}');
+    return goal.points;
+  }
+
+  // ─── Chart helpers (interactive dashboards) ────────────────
+  /// Meals logged on the given calendar day, newest first.
+  static List<Map<String, dynamic>> mealsOn(DateTime day) {
+    final iso = DateTime(day.year, day.month, day.day).toIso8601String();
+    return loggedMeals.where((m) {
+      final ts = DateTime.tryParse(m['timestamp'] as String? ?? '');
+      if (ts == null) return false;
+      return DateTime(ts.year, ts.month, ts.day).toIso8601String() == iso;
+    }).toList();
+  }
+
+  /// Mini-goal completions recorded on the given calendar day.
+  static List<MiniGoal> miniGoalsDoneOn(DateTime day) {
+    final iso = DateTime(day.year, day.month, day.day).toIso8601String();
+    final plan = miniGoalPlan;
+    return [
+      for (final g in plan)
+        if (_miniCompletions.containsKey('${g.id}:$iso')) g,
+    ];
+  }
+
   // ─── Reset / Debug ─────────────────────────────────────────
   static Future<void> resetAll() async {
     await _settings.clear();
     await _meals.clear();
     await _streaks.clear();
     await _tokens.clear();
+    await _mini.clear();
   }
 }

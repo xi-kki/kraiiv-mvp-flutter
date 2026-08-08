@@ -3,11 +3,11 @@
 A warm, supportive mobile nutrition habit companion app for Nigerians.
 Rebuilt to match the video prototype ("The Kraiiv Prototype walkthrough.mp4"):
 light theme, chat onboarding with Klia, daily goals, food scanner with
-real AI detection, KTC rewards, Klia chat, and a stats-rich profile.
+real AI detection, weekly mini goals, KTC rewards, Klia chat, and a
+stats-rich profile.
 
 No emojis anywhere in the UI — all icons come from lucide.dev via the
 `lucide_flutter` package.
-
 ## Project Structure
 
 ```
@@ -69,6 +69,10 @@ lib/
   - Eat mindfully without distractions for one meal → +10 KTC
   - Scan 3 food items to check nutrition facts → +25 KTC
   Tap to complete; KTC awarded instantly.
+- **Your Mini Goals**: 5 small weekly actions chipped from the user's
+  health goal (rotated each week, regenerated when the goal changes).
+  Tap to complete once per day for KTC; weekly progress bar on home,
+  weekly stats + streak on Rewards Hub, day drill-down on weekly bars.
 - **Local & Seasonal Ideas**: carousel (Seasonal Vegetable Harmony Bowl,
   Farmers Market Frittata, Local Berry Breakfast Smoothie) with View Recipe
 

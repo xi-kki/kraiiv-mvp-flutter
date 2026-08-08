@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+import '../../../core/models/mini_goal.dart';
 import '../../../core/services/data_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../data/repository/recipe_repository.dart';
@@ -64,6 +65,376 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _toggleMiniGoal(String id) async {
+    final already = DataService.miniGoalDoneToday(id);
+    final awarded = await DataService.completeMiniGoal(id);
+    if (!mounted) return;
+    setState(() {});
+    if (awarded > 0) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            backgroundColor: AppTheme.primaryGreen,
+            content: Row(
+              children: [
+                const Icon(LucideIcons.coins, color: Colors.white, size: 18),
+                const SizedBox(width: 10),
+                Text('Mini goal complete! +$awarded KTC'),
+              ],
+            ),
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+    } else if (already) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            backgroundColor: AppTheme.textMuted,
+            content: Text('This mini goal is already done today'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(seconds: 2),
+          ),
+        );
+    }
+  }
+
+  /// Drill-down for a weekly bar: shows that day's meals and mini goals.
+  void _showDayDetails(DateTime day) {
+    final meals = DataService.mealsOn(day);
+    final miniGoals = DataService.miniGoalsDoneOn(day);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(LucideIcons.calendarDays,
+                      color: AppTheme.primaryGreen, size: 18),
+                  const SizedBox(width: 8),
+                  Text(
+                    _dayLabel(day),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Meals (${meals.length})',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (meals.isEmpty)
+                const Text(
+                  'No meals logged this day',
+                  style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                )
+              else
+                ...meals.map(
+                  (m) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        const Icon(LucideIcons.utensils,
+                            color: AppTheme.primaryGreen, size: 14),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            m['name'] as String,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${m['healthScore']}/10',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryGreenDark,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 12),
+              Text(
+                'Mini goals (${miniGoals.length})',
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textMuted,
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (miniGoals.isEmpty)
+                const Text(
+                  'No mini goals completed this day',
+                  style: TextStyle(fontSize: 13, color: AppTheme.textMuted),
+                )
+              else
+                ...miniGoals.map(
+                  (g) => Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        const Icon(LucideIcons.checkCircle,
+                            color: AppTheme.primaryGreen, size: 14),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            g.title,
+                            style: const TextStyle(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textDark,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '+${g.points}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.gold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _dayLabel(DateTime day) {
+    const weekdayNames = [
+      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+    ];
+    return '${weekdayNames[day.weekday - 1]} ${day.day} ${_monthName(day.month)}';
+  }
+
+  String _monthName(int month) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return months[month - 1];
+  }
+
+  (IconData, Color) _miniGoalStyle(String category) {
+    switch (category) {
+      case 'hydration':
+        return (LucideIcons.droplets, AppTheme.primaryGreen);
+      case 'movement':
+        return (LucideIcons.footprints, AppTheme.orange);
+      case 'nutrition':
+        return (LucideIcons.carrot, AppTheme.primaryGreenDark);
+      case 'mindfulness':
+        return (LucideIcons.brain, AppTheme.gold);
+      case 'sleep':
+        return (LucideIcons.moon, AppTheme.textMuted);
+      case 'local':
+        return (LucideIcons.leaf, AppTheme.primaryGreenDark);
+      default:
+        return (LucideIcons.sparkles, AppTheme.gold);
+    }
+  }
+
+  Widget _buildMiniGoalSection() {
+    final plan = DataService.miniGoalPlan;
+    final done = DataService.miniGoalsDoneThisWeek;
+    final total = DataService.miniGoalsTotalThisWeek;
+    final points = DataService.miniGoalPointsThisWeek;
+    final goal = DataService.healthGoal;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(LucideIcons.listChecks,
+                color: AppTheme.primaryGreen, size: 20),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Your Mini Goals',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark,
+                    ),
+                  ),
+                  Text(
+                    'Small actions chipped from your goal',
+                    style: TextStyle(fontSize: 12, color: AppTheme.textMuted),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '+$points KTC this week',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.primaryGreenDark,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...plan.map(
+          (g) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _buildMiniGoalRow(g),
+          ),
+        ),
+        const SizedBox(height: 6),
+        LinearProgressIndicator(
+          value: total == 0 ? 0 : done / total,
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(3),
+          backgroundColor: AppTheme.border,
+          color: AppTheme.primaryGreen,
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '$done of $total actions this week',
+          style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Goal: $goal',
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.gold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniGoalRow(MiniGoal goal) {
+    final doneToday = DataService.miniGoalDoneToday(goal.id);
+    final doneWeek = DataService.miniGoalDoneThisWeek(goal.id);
+    final (icon, color) = _miniGoalStyle(goal.category);
+    return Material(
+      color: doneToday ? AppTheme.surface : Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () => _toggleMiniGoal(goal.id),
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: doneToday ? AppTheme.primaryGreen : AppTheme.border,
+              width: doneToday ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      goal.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color:
+                            doneToday ? AppTheme.textMuted : AppTheme.textDark,
+                        decoration: doneToday ? TextDecoration.lineThrough : null,
+                        decorationColor: AppTheme.textMuted,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$doneWeek/7 this week',
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: AppTheme.textMuted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: doneToday
+                      ? AppTheme.primaryGreen
+                      : color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: Text(
+                  '+${goal.points}',
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w800,
+                    color: doneToday ? Colors.white : color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final completed = DataService.goalsCompletedToday;
@@ -110,6 +481,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: _buildGoalRow(i, completed[i]),
               );
             }),
+            const SizedBox(height: 22),
+            _buildMiniGoalSection(),
             const SizedBox(height: 14),
             _buildSectionTitle(
               icon: LucideIcons.sparkles,
@@ -281,31 +654,38 @@ class _HomeScreenState extends State<HomeScreen> {
               final height = count == 0
                   ? 4.0
                   : 6.0 + (count / maxCount) * 34.0;
+              final day = DateTime.now()
+                  .subtract(Duration(days: 6 - i));
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 3),
-                  child: Column(
-                    children: [
-                      if (count > 0)
-                        Text(
-                          '$count',
-                          style: const TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.primaryGreen,
+                  child: InkWell(
+                    onTap: () => _showDayDetails(day),
+                    borderRadius: BorderRadius.circular(4),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (count > 0)
+                          Text(
+                            '$count',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryGreen,
+                            ),
+                          ),
+                        const SizedBox(height: 3),
+                        Container(
+                          height: height,
+                          decoration: BoxDecoration(
+                            color: count > 0
+                                ? AppTheme.primaryGreen
+                                : AppTheme.border,
+                            borderRadius: BorderRadius.circular(3),
                           ),
                         ),
-                      const SizedBox(height: 3),
-                      Container(
-                        height: height,
-                        decoration: BoxDecoration(
-                          color: count > 0
-                              ? AppTheme.primaryGreen
-                              : AppTheme.border,
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               );
