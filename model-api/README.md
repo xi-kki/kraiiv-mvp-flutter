@@ -1,3 +1,39 @@
+---
+title: Kraiiv Food Recognition API
+sdk: docker
+app_port: 7860
+colorFrom: green
+colorTo: emerald
+pinned: false
+---
+
+This folder is the Hugging Face Space repo: after creating an empty
+Docker-SDK Space, push this directory's contents to it and it serves the
+Kraiiv food API (see the Dockerfile notes on why the image stays lean).
+
+To deploy:
+
+```bash
+cd model-api
+git init
+git add .
+git commit -m "Kraiiv food API"
+git remote add space https://huggingface.co/spaces/<your-user>/kraiiv-api
+git push space main
+```
+
+Then rebuild the Flutter web app pointing at the Space URL:
+
+```bash
+flutter build web --release \
+  --dart-define=KRAIIV_API_URL=https://<your-user>-kraiiv-api.hf.space
+```
+
+The app falls back to the offline 46-food matcher if the API is unreachable,
+so a slow Space cold start degrades gracefully.
+
+---
+
 # Kraiiv Food Recognition API
 
 Serves real food identification to the Kraiiv MVP scanner.
