@@ -36,5 +36,11 @@ fi
 flutter config --no-analytics >/dev/null 2>&1 || true
 flutter --version
 flutter pub get
-flutter build web --release
+if [ -n "$KRAIIV_API_URL" ]; then
+  echo "==> Building with KRAIIV_API_URL=$KRAIIV_API_URL"
+  flutter build web --release --dart-define=KRAIIV_API_URL="$KRAIIV_API_URL"
+else
+  echo "==> Building without API URL (offline matcher + keyword chat)"
+  flutter build web --release
+fi
 echo "==> Build complete: build/web"

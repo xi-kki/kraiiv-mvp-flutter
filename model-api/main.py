@@ -19,12 +19,15 @@ import hashlib
 import io
 import json
 import logging
+import os
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+import httpx
+from pydantic import BaseModel, Field
 from PIL import Image
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -378,3 +381,67 @@ async def detect(request: Request, file: UploadFile = File(...)) -> dict:
             status_code=503,
             detail="No food model available. Run the setup step in README.md.",
         )
+
+
+# ─── Klia chat (Groq LLM) ─────────────────────────────────────────────
+# The key is read from the environment at request time so it never lands
+# in code or the image. Local dev: export GROQ_API_KEY=... ; on Hugging
+# Face Spaces it is a Space Secret (Settings → Secrets). Without a key
+# the endpoint answers 503 and the app falls back to keyword replies.
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+GROQ_MODEL = os.environ.get("KRAIIV_CHAT_MODEL", "llama-3.3-70b-versatile")
+
+KLIA_SYSTEM_PROMPT = (
+    "You are Klia, the Kraiiv AI nutrition coach. You speak warmly and "
+    "briefly (2-4 sentences), always practical, encouraging small consistent "
+    "steps toward a health goal. You know Nigerian and West African food "
+    "culture well — jollof, egusi, eba, moi moi, suya, ofada rice, ugwu, "
+    "ewedu, zobo — and recommend local, seasonal options. You never give "
+    "medical diagnoses. If asked something outside nutrition, gently steer "
+    "back to food, mindful eating and local dishes."
+)
+
+
+class ChatMessage(BaseModel):
+    role: str = Field(pattern="^(user|assistant)$")
+    content: str = Field(min_length=1, max_length=1500)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=20)
+
+
+@app.post("/chat")
+@limiter.limit("30/minute")
+async def chat(request: Request, payload: ChatRequest) -> dict:
+    api_key = os.environ.get("GROQ_API_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="Klia AI is not configured on this deployment",
+        )
+    # The server owns the persona: the system prompt is always ours and a
+    # caller can never smuggle in their own (roles are re-validated above).
+    messages = [{"role": "system", "content": KLIA_SYSTEM_PROMPT}] + [
+        {"role": m.role, "content": m.content} for m in payload.messages
+    ]
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            resp = await client.post(
+                GROQ_API_URL,
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": GROQ_MODEL,
+                    "messages": messages,
+                    "temperature": 0.6,
+                    "max_tokens": 240,
+                },
+            )
+    except httpx.HTTPError as exc:
+        logger.warning("Groq unreachable: %s", exc)
+        raise HTTPException(status_code=502, detail="Klia AI is temporarily unavailable")
+    if resp.status_code != 200:
+        logger.warning("Groq error %s: %s", resp.status_code, resp.text[:200])
+        raise HTTPException(status_code=502, detail="Klia AI is temporarily unavailable")
+    reply = resp.json()["choices"][0]["message"]["content"].strip()
+    return {"reply": reply}

@@ -31,7 +31,7 @@ lib/
 │   ├── home/            # Greeting, Your Progress, Today's Goals, Local Ideas
 │   ├── logging/         # Food Scanner + scan result
 │   ├── rewards/         # Rewards Hub (KTC balance, redemption)
-│   ├── chat/            # Klia chat (keyword nutrition answers)
+│   ├── chat/            # Klia chat (Groq AI via model-api, keyword fallback)
 │   ├── profile/         # Weekly progress, habit categories, achievements
 │   ├── progress/        # "View Details" from the home progress card
 │   └── recipes/         # Recipe detail from Local & Seasonal cards
@@ -96,8 +96,10 @@ lib/
   (needs payment rails).
 
 ### Klia Chat
-- "Ask Klia about nutrition..." with keyword answers
-  (protein, calories, fibre, hydration, local foods, mindful eating, KTC).
+- "Ask Klia about nutrition..." — real AI answers via the model API's
+  `/chat` endpoint (Groq LLM, key from env/secret — never in code).
+  Falls back to keyword answers (protein, calories, fibre, hydration,
+  local foods, mindful eating, KTC) when the API is unreachable.
 
 ### My Profile
 - Health Goal / Preferred / Location rows (editable via FilePen),

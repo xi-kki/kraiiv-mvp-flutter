@@ -69,10 +69,30 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 |--------|------|-------------|
 | `GET`  | `/health` | Status, which model is loaded |
 | `POST` | `/detect` | Upload an image → `{"detected": [{food, confidence, ...}], "model": "..."}` |
+| `POST` | `/chat` | Ask Klia (Groq LLM) → `{"reply": "..."}`; 503 if no key configured |
 
 ```bash
 curl -X POST -F "file=@plate.jpg" http://localhost:8000/detect
+curl -X POST -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "what is a good local breakfast?"}]}' \
+  http://localhost:8000/chat
 ```
+
+## Klia chat secrets
+
+The `/chat` endpoint calls Groq's API with the `GROQ_API_KEY` environment
+variable. The key is never stored in code or in this repo:
+
+- **Local dev**: `export GROQ_API_KEY=...` (or put it in a `.env` that is
+  gitignored) before running uvicorn.
+- **Hugging Face Space**: Settings → Secrets → add `GROQ_API_KEY` with the
+  key value. The Space restarts with the secret injected; `/chat` then
+  answers, otherwise it returns 503 and the app uses its keyword fallback.
+
+Model: `llama-3.3-70b-versatile` (override with the `KRAIIV_CHAT_MODEL`
+env var). The system prompt that defines Klia's persona lives server-side,
+so clients cannot inject their own prompt. Requests are capped at 20
+messages of 1500 chars each and rate-limited to 30/minute.
 
 ## Enrichment
 

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 import '../../../core/services/data_service.dart';
+import '../../../core/services/klia_chat_service.dart';
 import '../../../core/theme/app_theme.dart';
 
 /// Chat with Klia matching the prototype:
@@ -17,6 +18,7 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
   final List<_Message> _messages = [];
+  bool _awaiting = false;
 
   @override
   void initState() {
@@ -43,17 +45,38 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
     _scrollController.dispose();
     super.dispose();
   }
-
-  void _send() {
+  Future<void> _send() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty || _awaiting) return;
 
     setState(() {
       _messages.add(_Message(text: text, fromKlia: false));
-      _messages.add(_Message(text: _replyTo(text), fromKlia: true));
       _controller.clear();
+      _awaiting = true;
     });
+    _scrollToBottom();
 
+    final reply = await KliaChatService.ask(_recentContext(), text);
+    if (!mounted) return;
+    setState(() {
+      _messages.add(_Message(text: reply ?? _replyTo(text), fromKlia: true));
+      _awaiting = false;
+    });
+    _scrollToBottom();
+  }
+
+  /// Last 4 exchanges (8 messages) as [role, content] pairs for context.
+  List<Map<String, String>> _recentContext() {
+    final recent = _messages.length <= 8
+        ? _messages
+        : _messages.sublist(_messages.length - 8);
+    return [
+      for (final m in recent)
+        {'role': m.fromKlia ? 'assistant' : 'user', 'content': m.text},
+    ];
+  }
+
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -168,9 +191,13 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
               child: ListView.builder(
                 controller: _scrollController,
                 padding: const EdgeInsets.all(16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) =>
-                    _buildBubble(_messages[index]),
+                itemCount: _messages.length + (_awaiting ? 1 : 0),
+                itemBuilder: (context, index) {
+                  if (_awaiting && index == _messages.length) {
+                    return _buildTypingBubble();
+                  }
+                  return _buildBubble(_messages[index]);
+                },
               ),
             ),
             _buildInputBar(),
@@ -230,6 +257,33 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
             fontSize: 14.5,
             height: 1.5,
             color: Colors.white,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTypingBubble() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(4),
+            topRight: Radius.circular(18),
+            bottomLeft: Radius.circular(18),
+            bottomRight: Radius.circular(18),
+          ),
+          border: Border.all(color: AppTheme.border),
+        ),
+        child: const Text(
+          'Klia is typing…',
+          style: TextStyle(
+            fontSize: 14.5,
+            color: AppTheme.textMuted,
           ),
         ),
       ),

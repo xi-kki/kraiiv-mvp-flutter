@@ -7,6 +7,7 @@ import 'package:hive/hive.dart';
 
 import 'package:kraiiv/core/services/data_service.dart';
 import 'package:kraiiv/main.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 
 void main() {
   setUp(() async {
@@ -100,5 +101,34 @@ void main() {
     await tester.tap(find.text('Home'));
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.textContaining('Xi-kki!'), findsOneWidget);
+  });
+  testWidgets('chat falls back to keyword answers when the AI API is down',
+      (tester) async {
+    await tester.runAsync(() async {
+      await DataService.setOnboardingComplete();
+      await DataService.setUserName('Xi-kki');
+    });
+
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const ProviderScope(child: KraiivApp()));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+
+    // Go to the Chat tab.
+    await tester.tap(find.text('Chat'));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    // Widget tests stub HTTP with 400 responses, so the model API call
+    // fails fast and Klia answers from the local keyword logic.
+    await tester.enterText(find.byType(TextField), 'what about protein?');
+    await tester.tap(find.byIcon(LucideIcons.send));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('what about protein?'), findsOneWidget);
+    expect(find.textContaining('Great question'), findsOneWidget);
   });
 }
