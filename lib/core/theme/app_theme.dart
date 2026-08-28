@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 /// Kraiiv brand theme — matches the video prototype (light, clean, green CTAs).
 class AppTheme {
-  // Brand colors
-  static const Color primaryGreen = Color(0xFF22C55E);
-  static const Color primaryGreenDark = Color(0xFF16A34A);
+  static const Color primaryGreen = Color(0xFF3A5A40);
+  static const Color primaryGreenDark = Color(0xFF2E4A35);
+  static const Color sageLight = Color(0xFFEBF2EB);
   static const Color gold = Color(0xFFC4A265);
   static const Color goldDim = Color(0x80C4A265); // ~50% opacity
-
   // Surfaces
   static const Color background = Color(0xFFFFFFFF);
   static const Color surface = Color(0xFFF8F7F4);

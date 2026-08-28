@@ -935,7 +935,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildRecipeCarousel() {
     return SizedBox(
-      height: 210,
+      height: 228,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: RecipeRepository.recipes.length,
@@ -943,60 +943,72 @@ class _HomeScreenState extends State<HomeScreen> {
         itemBuilder: (context, index) {
           final recipe = RecipeRepository.recipes[index];
           return Container(
-            width: 250,
-            padding: const EdgeInsets.all(16),
+            width: 260,
             decoration: BoxDecoration(
-              color: AppTheme.surface,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(18),
               border: Border.all(color: AppTheme.border),
             ),
+            clipBehavior: Clip.antiAlias,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryGreen.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    _recipeIcon(recipe.icon),
-                    color: AppTheme.primaryGreen,
-                    size: 22,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  recipe.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
-                    height: 1.25,
+                // Real food photo — matches prototype video frames 130-180 & preview HTML
+                Image.network(
+                  recipe.imageUrl,
+                  height: 108,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stack) => Container(
+                    height: 108,
+                    color: AppTheme.sageLight,
+                    child: Icon(_recipeIcon(recipe.icon),
+                        color: AppTheme.primaryGreen),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  recipe.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextButton.icon(
-                  onPressed: () => context.push('/recipe/$index'),
-                  icon: const Icon(LucideIcons.chevronRight, size: 15),
-                  label: const Text('View Recipe'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppTheme.primaryGreen,
-                    padding: EdgeInsets.zero,
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          recipe.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textDark,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          recipe.subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            color: AppTheme.textMuted,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton.icon(
+                          onPressed: () => context.push('/recipe/$index'),
+                          icon: const Icon(LucideIcons.chevronRight, size: 14),
+                          label: const Text('View Recipe'),
+                          style: TextButton.styleFrom(
+                            foregroundColor: AppTheme.primaryGreen,
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            textStyle: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 12.5),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

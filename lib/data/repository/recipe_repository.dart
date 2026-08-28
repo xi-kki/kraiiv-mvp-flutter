@@ -1,11 +1,13 @@
 /// Local & Seasonal recipe ideas shown on the home screen.
-/// Mirrors the prototype's "Local & Seasonal Ideas" carousel.
+/// Mirrors the prototype's "Local & Seasonal Ideas" carousel — with real food
+/// photos matching C:/tmp/kraiiv-prototype-preview.html / video frames 130-180.
 class Recipe {
   final String title;
   final String subtitle;
   final String description;
   final List<String> ingredients;
   final String icon; // lucide icon name lookup happens in the UI layer
+  final String imageUrl; // Unsplash food photo — prototype uses real images
 
   const Recipe({
     required this.title,
@@ -13,6 +15,7 @@ class Recipe {
     required this.description,
     required this.ingredients,
     required this.icon,
+    required this.imageUrl,
   });
 }
 
@@ -32,6 +35,8 @@ class RecipeRepository {
         'Fresh herbs',
       ],
       icon: 'salad',
+      imageUrl:
+          'https://images.unsplash.com/photo-1540420773420-3366772f4999?w=600&q=80&auto=format&fit=crop',
     ),
     Recipe(
       title: 'Farmers Market Frittata',
@@ -46,6 +51,8 @@ class RecipeRepository {
         'Salt, pepper and dried herbs',
       ],
       icon: 'egg',
+      imageUrl:
+          'https://images.unsplash.com/photo-1482049016688-2d3e1b31122d?w=600&q=80&auto=format&fit=crop',
     ),
     Recipe(
       title: 'Local Berry Breakfast Smoothie',
@@ -61,6 +68,8 @@ class RecipeRepository {
         'Optional: oats for thickness',
       ],
       icon: 'apple',
+      imageUrl:
+          'https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=600&q=80&auto=format&fit=crop',
     ),
   ];
 }

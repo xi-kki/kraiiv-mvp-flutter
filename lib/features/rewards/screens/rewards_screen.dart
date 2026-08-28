@@ -22,18 +22,24 @@ class _RewardsScreenState extends State<RewardsScreen> {
       'cost': 150,
       'description':
           'A relaxing \$25 treatment redeemable at participating locations.',
+      'image':
+          'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=600&q=80&auto=format&fit=crop',
     },
     {
       'icon': 'dessert',
       'title': 'Gourmet Dessert Box',
       'cost': 150,
       'description': 'Premium chocolate truffles and sweet treats, delivered.',
+      'image':
+          'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=600&q=80&auto=format&fit=crop',
     },
     {
       'icon': 'market',
       'title': 'Local Market Voucher',
       'cost': 100,
       'description': 'Towards fresh produce at your local market.',
+      'image':
+          'https://images.unsplash.com/photo-1542838132-92c53300491e?w=600&q=80&auto=format&fit=crop',
     },
     {
       'icon': 'cash',
@@ -41,6 +47,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
       'cost': -1,
       'description':
           'Real-value conversion arrives with partner payout — coming soon.',
+      'image': '',
     },
   ];
 
@@ -398,77 +405,102 @@ class _RewardsScreenState extends State<RewardsScreen> {
   }
 
   Widget _buildRewardCard(Map<String, Object> reward) {
+    final image = (reward['image'] ?? '') as String;
+    final hasImage = image.isNotEmpty;
     return Container(
-      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppTheme.border),
       ),
-      child: Row(
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: AppTheme.primaryGreen.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(13),
+          if (hasImage)
+            Image.network(
+              image,
+              height: 120,
+              width: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stack) => Container(
+                height: 120,
+                color: AppTheme.sageLight,
+                child: Icon(_iconFor(reward['icon']! as String),
+                    color: AppTheme.primaryGreen, size: 28),
+              ),
             ),
-            child: Icon(
-              _iconFor(reward['icon']! as String),
-              color: AppTheme.primaryGreen,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+            child: Row(
               children: [
-                Text(
-                  reward['title']! as String,
-                  style: const TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
+                if (!hasImage)
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryGreen.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(13),
+                    ),
+                    child: Icon(
+                      _iconFor(reward['icon']! as String),
+                      color: AppTheme.primaryGreen,
+                      size: 22,
+                    ),
+                  ),
+                if (!hasImage) const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        reward['title']! as String,
+                        style: const TextStyle(
+                          fontSize: 15.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        reward['description']! as String,
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          height: 1.4,
+                          color: AppTheme.textMuted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  reward['description']! as String,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    height: 1.4,
-                    color: AppTheme.textMuted,
-                  ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _priceLabel(reward['cost']! as int),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.primaryGreenDark,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    TextButton(
+                      onPressed: () => _redeem(reward),
+                      style: TextButton.styleFrom(
+                        foregroundColor: AppTheme.primaryGreen,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        minimumSize: Size.zero,
+                        textStyle:
+                            const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      child: const Text('Redeem'),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                _priceLabel(reward['cost']! as int),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: AppTheme.primaryGreenDark,
-                ),
-              ),
-              const SizedBox(height: 6),
-              TextButton(
-                onPressed: () => _redeem(reward),
-                style: TextButton.styleFrom(
-                  foregroundColor: AppTheme.primaryGreen,
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  minimumSize: Size.zero,
-                  textStyle: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                child: const Text('Redeem'),
-              ),
-            ],
           ),
         ],
       ),
