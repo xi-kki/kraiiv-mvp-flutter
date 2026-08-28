@@ -130,6 +130,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await NotificationService.enableDailyNudges();
     }
     await DataService.setOnboardingComplete();
+    await DataService.logIn();
     if (!mounted) return;
     context.go('/home');
   }

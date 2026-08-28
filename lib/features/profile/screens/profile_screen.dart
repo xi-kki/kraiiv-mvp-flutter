@@ -162,7 +162,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildAchievements(),
             const SizedBox(height: 8),
             _buildNudgeToggle(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+            _buildLogoutButton(),
+            const SizedBox(height: 8),
             _buildStartOverButton(),
           ],
         ),
@@ -703,6 +705,51 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
         },
       ),
+    );
+  }
+
+  Widget _buildLogoutButton() {
+    final loggedIn = DataService.isLoggedIn;
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          height: 52,
+          child: ElevatedButton.icon(
+            onPressed: loggedIn ? _confirmLogout : () => context.go('/login'),
+            icon: Icon(loggedIn ? LucideIcons.logOut : LucideIcons.logIn, size: 18),
+            label: Text(loggedIn ? 'Log Out' : 'Log In'),
+          ),
+        ),
+        if (loggedIn)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text('Logged in as ${DataService.userName} • tap to sign out',
+                style: const TextStyle(fontSize: 12.5, color: AppTheme.textMuted)),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _confirmLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Log out?'),
+        content: Text(
+            'You will be signed out but your meals, streaks and ${DataService.ktcBalance} KTC stay saved. Log in again to continue.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Log Out')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await DataService.logOut();
+    if (!mounted) return;
+    context.go('/login');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Logged out — tap Log In to return'), behavior: SnackBarBehavior.floating),
     );
   }
 

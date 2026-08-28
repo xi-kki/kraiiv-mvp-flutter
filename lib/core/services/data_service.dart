@@ -33,6 +33,16 @@ class DataService {
   static Future<void> setOnboardingComplete() =>
       _settings.put('onboarding_complete', true);
 
+  // ─── Auth (Log In / Log Out — local mock, no backend) ──────
+  /// True when the user has an active session. Onboarding creates the
+  /// session; Login restores it; Log Out clears it without wiping profile.
+  static bool get isLoggedIn =>
+      _settings.get('is_logged_in', defaultValue: false);
+  static Future<void> setLoggedIn(bool value) =>
+      _settings.put('is_logged_in', value);
+  static Future<void> logIn() => setLoggedIn(true);
+  static Future<void> logOut() => setLoggedIn(false);
+
   static String get userName =>
       _settings.get('user_name', defaultValue: '');
   static Future<void> setUserName(String name) =>

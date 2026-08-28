@@ -11,12 +11,24 @@ import '../../features/logging/screens/scan_result_screen.dart';
 import '../../features/rewards/screens/rewards_screen.dart';
 import '../../features/chat/screens/klia_chat_screen.dart';
 import '../../features/profile/screens/profile_screen.dart';
+import '../../features/auth/screens/login_screen.dart';
+import '../../core/services/data_service.dart';
 import '../../features/progress/screens/progress_detail_screen.dart';
 import '../../features/recipes/screens/recipe_detail_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
+    redirect: (context, state) {
+      final loc = state.matchedLocation;
+      final onboardingComplete = DataService.isOnboardingComplete;
+      final loggedIn = DataService.isLoggedIn;
+      final isAuthRoute = loc == '/login' || loc == '/onboarding' || loc == '/splash';
+      if (!onboardingComplete && loc != '/onboarding' && loc != '/splash') return '/onboarding';
+      if (onboardingComplete && !loggedIn && !isAuthRoute) return '/login';
+      if (onboardingComplete && loggedIn && (loc == '/login' || loc == '/onboarding')) return '/home';
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/splash',
@@ -25,6 +37,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: '/login',
+        builder: (context, state) => const LoginScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

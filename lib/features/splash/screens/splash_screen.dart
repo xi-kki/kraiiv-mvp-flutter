@@ -44,8 +44,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
     Future.delayed(const Duration(seconds: 2), () {
       if (!mounted) return;
-      final destination =
-          DataService.isOnboardingComplete ? '/home' : '/onboarding';
+      final String destination;
+      if (!DataService.isOnboardingComplete) {
+        destination = '/onboarding';
+      } else if (!DataService.isLoggedIn) {
+        destination = '/login';
+      } else {
+        destination = '/home';
+      }
       context.go(destination);
     });
   }
