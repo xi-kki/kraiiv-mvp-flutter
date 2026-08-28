@@ -19,9 +19,9 @@ class _RewardsScreenState extends State<RewardsScreen> {
     {
       'icon': 'spa',
       'title': 'Spa Treatment Voucher',
-      'cost': 250,
+      'cost': 150,
       'description':
-          'A relaxing treatment redeemable at participating locations.',
+          'A relaxing \$25 treatment redeemable at participating locations.',
     },
     {
       'icon': 'dessert',
