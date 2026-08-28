@@ -39,6 +39,7 @@ void main() {
       await DataService.setOnboardingComplete();
       await DataService.setUserName('Xi-kki');
       await DataService.setHealthGoal('Eat more mindfully');
+      await DataService.logIn();
     });
 
     // Tall viewport so the whole home feed (mini goals included) is built.
@@ -72,6 +73,7 @@ void main() {
     await tester.runAsync(() async {
       await DataService.setOnboardingComplete();
       await DataService.setUserName('Xi-kki');
+      await DataService.logIn();
     });
 
     await tester.pumpWidget(const ProviderScope(child: KraiivApp()));
@@ -107,6 +109,7 @@ void main() {
     await tester.runAsync(() async {
       await DataService.setOnboardingComplete();
       await DataService.setUserName('Xi-kki');
+      await DataService.logIn();
     });
 
     tester.view.physicalSize = const Size(800, 1600);
