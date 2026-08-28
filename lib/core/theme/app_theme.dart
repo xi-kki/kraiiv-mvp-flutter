@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+// ignore_for_file: prefer_const_constructors
+
 /// Kraiiv brand theme — matches the video prototype (light, clean, green CTAs).
 /// Crypto-aligned: pill buttons (9999 radius, 52h, shadow) like Coinbase/Kraken,
 /// 20-radius cards, sage #3A5A40.
@@ -55,10 +57,10 @@ class AppTheme {
           backgroundColor: primaryGreen,
           foregroundColor: Colors.white,
           elevation: 6,
-          shadowColor: Color(0x443A5A40),
-          minimumSize: Size.fromHeight(52),
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(
+          shadowColor: const Color(0x443A5A40),
+          minimumSize: const Size.fromHeight(52),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9999),
           ),
           textStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
@@ -69,9 +71,9 @@ class AppTheme {
           foregroundColor: textDark,
           backgroundColor: Colors.white,
           side: BorderSide(color: border, width: 1.5),
-          minimumSize: Size.fromHeight(52),
-          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(
+          minimumSize: const Size.fromHeight(52),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+          shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9999),
           ),
           textStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
@@ -93,10 +95,10 @@ class AppTheme {
       cardTheme: CardThemeData(
         color: Colors.white,
         elevation: 0,
-        shadowColor: Color(0x0A000000),
-        shape: RoundedRectangleBorder(
+        shadowColor: const Color(0x0A000000),
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: border),
+          side: const BorderSide(color: border),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -120,7 +122,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surface,
-        side: BorderSide(color: border),
+        side: const BorderSide(color: border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         labelStyle: TextStyle(color: textDark, fontWeight: FontWeight.w600),
       ),
