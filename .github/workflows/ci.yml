@@ -31,7 +31,7 @@ jobs:
 
   js-quality:
     runs-on: ubuntu-latest
-    if: hashFiles('package.json') != ''
+    if: ${{ hashFiles('package.json') != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -44,7 +44,7 @@ jobs:
 
   commitlint:
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    if: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
         with:
