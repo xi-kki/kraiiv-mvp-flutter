@@ -227,6 +227,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         backgroundColor: AppTheme.background,
         elevation: 0,
         leading: IconButton(
+          tooltip: 'Back',
           onPressed: () => context.pop(),
           icon: const Icon(LucideIcons.arrowLeft),
         ),
@@ -250,7 +251,10 @@ class _ScannerScreenState extends State<ScannerScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Center(child: _buildPreview()),
+                  Semantics(
+                    label: 'Food scanner preview — point camera at food, tap Start Scanning',
+                    child: Center(child: _buildPreview()),
+                  ),
                   const SizedBox(height: 20),
                   const Text(
                     'Scan your food to get nutritional information '

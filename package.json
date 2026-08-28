@@ -1,0 +1,26 @@
+{
+  "name": "kraiiv-mvp-flutter-standards",
+  "private": true,
+  "description": "Kraiiv MVP Flutter — pre-commit standards (Flutter analyze + dart format + gitleaks + commitlint)",
+  "scripts": {
+    "prepare": "husky",
+    "lint": "dart analyze",
+    "lint:fix": "dart fix --apply",
+    "format": "dart format .",
+    "format:check": "dart format --set-exit-if-changed .",
+    "test": "flutter test",
+    "check-all": "dart analyze && dart format --set-exit-if-changed . && flutter test"
+  },
+  "lint-staged": {
+    "*.{dart}": ["dart format --set-exit-if-changed", "dart analyze --fatal-infos"],
+    "*.{json,md,yaml,yml}": ["prettier --write"],
+    "*.{js,ts,jsx,tsx}": ["eslint --fix", "prettier --write"]
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^15.5.2",
+    "prettier": "^3.6.2",
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1"
+  }
+}

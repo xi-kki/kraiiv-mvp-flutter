@@ -1,0 +1,15 @@
+title = "Kraiiv Gitleaks Config — production grade"
+
+[allowlist]
+description = "Allowlisted non-committed local files"
+paths = [
+    '''\\.env\\.local''',
+    '''\\.vercel/.*''',
+    '''\\.dart_tool/.*''',
+]
+
+[[rules]]
+id = "vercel-oidc-jwt"
+description = "Vercel OIDC Token — short-lived, gitignored"
+regex = '''VERCEL_OIDC_TOKEN'''
+tags = ["allowlist", "vercel"]

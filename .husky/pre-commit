@@ -1,0 +1,31 @@
+#!/bin/sh
+# Kraiiv pre-commit — Flutter + gitleaks + lint-staged
+set -e
+echo "→ pre-commit: dart format (staged) + analyze"
+npx --yes lint-staged 2>/dev/null || {
+  echo "lint-staged not installed — running dart format fallback"
+  dart format --set-exit-if-changed . || {
+    echo "❌ dart format failed — run 'dart format .' and re-add"
+    exit 1
+  }
+}
+echo "→ pre-commit: flutter analyze (fatal infos)"
+flutter analyze --fatal-infos || {
+  echo "❌ flutter analyze failed"
+  exit 1
+}
+echo "→ pre-commit: gitleaks protect (staged secrets)"
+if [ -x "/tmp/gitleaks/gitleaks.exe" ]; then
+  /tmp/gitleaks/gitleaks.exe protect --staged -v --no-banner || {
+    echo "❌ gitleaks found secrets in staged changes"
+    exit 1
+  }
+elif command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged -v --no-banner || {
+    echo "❌ gitleaks found secrets in staged changes"
+    exit 1
+  }
+else
+  echo "⚠️ gitleaks not found — skipping staged scan"
+fi
+echo "✅ pre-commit passed"
