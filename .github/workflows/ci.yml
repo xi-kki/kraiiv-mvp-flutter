@@ -36,7 +36,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
       - run: npm ci || npm install
       - run: npx --yes prettier --check . || echo "prettier check skipped"
       - run: npx eslint . || echo "eslint skipped (no JS or missing deps)"
