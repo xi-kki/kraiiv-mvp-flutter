@@ -180,6 +180,43 @@ class DataService {
     await _awardTokens(earned, reason: 'Meal logged');
   }
 
+  // ─── Scan auto-tick (Daily Steps) ────────────────────────────
+  static int get scansToday {
+    final today = _today().toIso8601String();
+    if (_settings.get('scans_date') != today) return 0;
+    return _settings.get('scans_count', defaultValue: 0);
+  }
+
+  static Future<int> _incrementScanCount() async {
+    final today = _today().toIso8601String();
+    final storedDate = _settings.get('scans_date');
+    int count;
+    if (storedDate != today) {
+      count = 1;
+      await _settings.put('scans_date', today);
+    } else {
+      count = (_settings.get('scans_count', defaultValue: 0) as int) + 1;
+    }
+    await _settings.put('scans_count', count);
+    return count;
+  }
+
+  /// Called on every successful scan/log. Auto-ticks:
+  ///  • "Scan 3 food items" (index 3) when scansToday >= 3
+  ///  • "Log a local and seasonal meal" (index 0) when isLocal
+  /// Returns total KTC awarded from auto-ticked goals (0 if none).
+  static Future<int> recordScanAndTick({required bool isLocal}) async {
+    var awarded = 0;
+    final scans = await _incrementScanCount();
+    if (scans >= 3) {
+      awarded += await completeGoal(3);
+    }
+    if (isLocal) {
+      awarded += await completeGoal(0);
+    }
+    return awarded;
+  }
+
   static int get totalMealsLogged => loggedMeals.length;
 
   /// Number of meals logged on each of the last 7 days (oldest first).

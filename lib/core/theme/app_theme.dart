@@ -60,7 +60,7 @@ class AppTheme {
           shadowColor: const Color(0x443A5A40),
           minimumSize: const Size.fromHeight(52),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: const RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9999),
           ),
           textStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -0.2),
@@ -73,7 +73,7 @@ class AppTheme {
           side: BorderSide(color: border, width: 1.5),
           minimumSize: const Size.fromHeight(52),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: const RoundedRectangleBorder(
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(9999),
           ),
           textStyle: TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
@@ -96,7 +96,7 @@ class AppTheme {
         color: Colors.white,
         elevation: 0,
         shadowColor: const Color(0x0A000000),
-        shape: const RoundedRectangleBorder(
+        shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
           side: const BorderSide(color: border),
         ),

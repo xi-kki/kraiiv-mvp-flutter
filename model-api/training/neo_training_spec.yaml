@@ -1,0 +1,133 @@
+# Neo Training Spec — Nigerian Foods Detector
+# Delegation packet for the Neo autonomous agent (heyneo.com).
+# DO NOT run on the slow Windows HDD — hand off to an HF Space / Colab / runpod
+# with GPU.  This spec is intentionally declarative so Neo (or a human) can
+# execute it without re-discovering context.
+#
+# Two tracks are described; pick one:
+#   Track A — Classifier fine-tune (lightweight, recommended next)
+#   Track B — YOLO detector (needs bbox data)
+
+project: kraiiv-nigerian-foods
+owner: Kraiiv MVP
+created: 2026-08-28
+base_model:
+  repo: yusasif/Nigerian-food-recognision
+  revision: 36a13b5de1ecc61162f7d1ee21e28b11420cdb29
+  sha256: 7857709a114ea3c868d0e7a6abf42d9031e8704964b6be26437d8a289c70372f
+  architecture: EfficientNetV2-S
+  classes: 41
+  labels_file: label_vocab.json
+  nutrition_db: model-api/nigerian_foods.json  # 46 entries, ALIASES-mapped
+
+# ── Track A — EfficientNetV2-S classifier fine-tune ──────────────────
+track_a_classifier:
+  goal: >
+    Refresh the 41-class classifier on a larger / cleaner African foods
+    image set; keep the same architecture so model-api/main.py stays
+    compatible (drop-in best_model.pth).
+  dataset:
+    name: NigerFood-50  # or: custom scrape + manual clean
+    source:
+      - huggingface: yusasif/nigerian-food-dataset  # if available
+      - roboflow: nigerian-foods / african-foods  # fallback
+      - manual: datasets/nigerian-foods/images/**  # curated by team
+    classes: 41  # must match label_vocab.json order exactly
+    split: { train: 0.80, val: 0.10, test: 0.10 }
+    min_images_per_class: 150
+    license_check: true  # verify CC-BY / permissive before training
+  preprocessing:
+    image_size: [384, 384]   # matches model-api/_food_detect
+    normalize: { mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225] }
+    augment:
+      - RandomResizedCrop: { scale: [0.8, 1.0] }
+      - RandomHorizontalFlip: { p: 0.5 }
+      - ColorJitter: { brightness: 0.2, contrast: 0.2, saturation: 0.15 }
+      - RandomRotation: { degrees: 12 }
+      - CutMix / MixUp: { p: 0.3 }  # optional, helps with small classes
+  training:
+    framework: pytorch + torchvision
+    model: efficientnet_v2_s  # torchvision.models
+    pretrained: true  # start from ImageNet, then load yusasif head
+    head: { dropout: 0.3, linear_out: 41 }
+    loss: BCEWithLogitsLoss  # multi-label (sigmoid, threshold 0.3)
+    optimizer: { name: AdamW, lr: 1.0e-4, weight_decay: 0.01 }
+    scheduler: { name: CosineAnnealingLR, T_max: 30 }
+    epochs: 30
+    batch_size: 32        # adjust to GPU (16 on T4, 64 on A100)
+    mixed_precision: true # torch.cuda.amp
+    early_stopping: { patience: 5, metric: val_f1_macro }
+    seed: 42
+  metrics:
+    - accuracy_top1
+    - f1_macro
+    - f1_per_class
+    - mAP  # mean AP over 41 labels at threshold sweep
+  export:
+    - checkpoint: best_model.pth  # {model_state_dict, optimizer, epoch, labels}
+    - onnx: best_model.onnx       # opset 17, dynamic batch
+    - verify_sha256: true
+  deploy:
+    target: model-api/main.py  # pin new revision + sha256, update MODEL_REVISION
+    hf_space: kraiiv-api       # push to Space secret / Docker image
+    smoke_test: python -c "from main import _food_detect; ..."
+
+# ── Track B — YOLO bounding-box detector (future) ────────────────────
+track_b_yolo:
+  goal: >
+    Train a true object detector (bbox + class) so the app can localise
+    multiple dishes in one photo.  Requires bbox-annotated data which does
+    NOT exist offline today — this is a roadmap, not an immediate task.
+  why_not_now:
+    - No public Nigerian-foods bbox dataset with permissive license.
+    - Annotating 41 classes x 150 images x bbox is ~6k boxes of manual work.
+    - EfficientNet classifier already solves the MVP (single-dish) case.
+  when_to_start:
+    - After Track A ships, or when NigerFood-50 / Roboflow bbox export is secured.
+  dataset:
+    format: YOLO  # dataset.yaml in this folder
+    annotation_guide: >
+      Use Roboflow or LabelImg; export YOLO txt (class cx cy w h normalised).
+      One txt per image, same stem.  See prepare_dataset.py --yolo-dry-run
+      for the expected layout.
+  training:
+    framework: ultralytics  # pip install ultralytics
+    model: yolov8n.pt       # nano, fast on mobile; escalate to yolov8s/m if needed
+    alternatives: [yolov11n.pt, yolov8s.pt]
+    epochs: 50              # detector needs more than classifier
+    image_size: 640
+    batch: 16
+    optimizer: auto         # Ultralytics AdamW
+    augment: auto           # mosaic, mixup, HSV — Ultralytics defaults are strong
+    early_stopping: { patience: 10 }
+  metrics:
+    - mAP50
+    - mAP50-95
+    - precision / recall per class
+  export:
+    - best.pt
+    - best.onnx  # for on-device / HF Space without torch
+    - best_saved_model  # TF SavedModel if needed
+  deploy:
+    target: model-api/main.py  # add _yolo_detect() alongside _food_detect/_coco_detect
+    fallback_chain: [_food_detect, _yolo_detect, _coco_detect]
+
+# ── Execution notes for Neo ──────────────────────────────────────────
+neo_instructions:
+  prompt: >
+    You are Neo, an autonomous ML engineer.  Execute Track A above on an
+    HF Space GPU (or Colab).  Steps: 1) verify dataset license, 2) run
+    prepare_dataset.py --check, 3) train EfficientNetV2-S for 30 epochs
+    with the augmentation listed, 4) compute f1_macro on val, 5) export
+    ONNX and verify sha256, 6) open a PR updating model-api/main.py with
+    the new MODEL_REVISION + MODEL_SHA256.  Do NOT train on this Windows
+    HDD — use the Space.  If bbox data becomes available, draft Track B.
+  constraints:
+    - Do not mutate model-api/main.py's API (_food_detect, _coco_detect signatures).
+    - Keep 41-class order identical to label_vocab.json.
+    - Pin revision + sha256 (supply-chain security, see main.py comments).
+    - No heavy GPU work on the local Windows machine (slow HDD).
+  success_criteria:
+    - val f1_macro >= 0.82 (or >= baseline yusasif model)
+    - ONNX exports and runs via onnxruntime
+    - /detect still returns {detected, model} with local:true enrichment

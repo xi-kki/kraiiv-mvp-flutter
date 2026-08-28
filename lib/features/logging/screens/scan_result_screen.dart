@@ -63,8 +63,10 @@ class _ScanResultScreenState extends State<ScanResultScreen>
       protein: widget.food.protein,
       isLocal: widget.food.isLocal,
     );
+    final tickAward = await DataService.recordScanAndTick(isLocal: widget.food.isLocal);
 
     if (!mounted) return;
+    // Primary confirmation
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
@@ -81,6 +83,25 @@ class _ScanResultScreenState extends State<ScanResultScreen>
           duration: const Duration(seconds: 2),
         ),
       );
+    // Auto-tick confirmation (if any daily goal was just completed by this scan)
+    if (tickAward > 0) {
+      await Future<void>.delayed(const Duration(milliseconds: 400));
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppTheme.primaryGreenDark,
+          content: Row(
+            children: [
+              const Icon(LucideIcons.checkCircle, color: Colors.white, size: 18),
+              const SizedBox(width: 10),
+              Text('Step ticked! +$tickAward KTC — check Home'),
+            ],
+          ),
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
     // Small pause so the user sees the confirmation before landing home.
     await Future<void>.delayed(const Duration(milliseconds: 700));
     if (!mounted) return;

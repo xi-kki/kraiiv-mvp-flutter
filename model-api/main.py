@@ -1,13 +1,22 @@
 """
-Kraiiv Food Recognition API
+Kraiiv Food Recognition API — African-Trained Food Detection
 
-Wraps the Nigerian Food Lens model (EfficientNetV2-S, 41 Nigerian food
-classes, https://huggingface.co/yusasif/Nigerian-food-recognision) behind
-a simple /detect endpoint that the Kraiiv MVP scanner calls.
+Primary detector: Nigerian Food Lens (EfficientNetV2-S, 41 Nigerian/West-African
+foods, https://huggingface.co/yusasif/Nigerian-food-recognision, revision
+36a13b5de1ecc61162f7d1ee21e28b11420cdb29, SHA-256 pinned).  This model IS already
+African-trained and covers jollof rice, egusi soup, eba, fufu, amala, moi moi,
+suya, plantain, banga, ewedu, gbegiri, ofada and 29 more (see label_vocab.json
+and C:/tmp/nigerian-foods-training/README.md).  The 46-entry nigerian_foods.json
+nutrition DB maps onto its 41 labels via ALIASES for enrichment.
 
-Falls back to the COCO SSD MobileNet detector (the pipeline from
-https://github.com/xi-kki/An-Object-Detection-App) when the food model
-is not available, so generic items (apple, banana, ...) still resolve.
+Fallback detector: COCO SSD MobileNet v3 (80 classes from
+https://github.com/xi-kki/An-Object-Detection-App) — generic western foods only
+(pizza, hot dog, donut, apple, banana…); zero Nigerian dishes.  Used only when
+the Nigerian model is unavailable.  For future YOLO bbox retrain on African
+foods see C:/tmp/nigerian-foods-training/ (dataset.yaml, prepare_dataset.py,
+neo_training_spec.yaml) — requires bbox-annotated data not available offline.
+
+Endpoints: POST /detect (→ _food_detect then _coco_detect), GET /health, POST /chat.
 
 Run:
     pip install -r requirements.txt

@@ -1,0 +1,59 @@
+# Nigerian Foods — YOLO Dataset Config
+# YOLOv8 / YOLOv11 training manifest for future bounding-box fine-tune.
+# Currently the Kraiiv stack uses EfficientNetV2-S (classification, not detection)
+# — this file prepares the ground for a YOLO detector when bbox-annotated data exists.
+#
+# Place images under datasets/nigerian-foods/{images,labels}/{train,val}
+# and run: yolo detect train data=dataset.yaml model=yolov8n.pt epochs=30
+
+path: ./datasets/nigerian-foods   # dataset root (relative to this file)
+train: images/train
+val: images/val
+test: images/test                 # optional held-out split
+
+# 41 classes — aligned 1:1 with yusasif/Nigerian-food-recognision label_vocab.json
+# (revision 36a13b5de1ecc61162f7d1ee21e28b11420cdb29).  Kraiiv nigerian_foods.json
+# (46 nutrition entries) maps onto these via ALIASES in model-api/main.py.
+nc: 41
+names:
+  0: Akara
+  1: Akara And Bread
+  2: Amala
+  3: Banga soup
+  4: Beans
+  5: Beef
+  6: Bitterleaf soup
+  7: Bread
+  8: Chicken
+  9: Cow foot
+  10: Cow skin
+  11: Eba
+  12: Edikaikong
+  13: Efo Riro
+  14: Egg
+  15: Egusi soup
+  16: Ewedu
+  17: Fish
+  18: Fufu
+  19: Garri and Groundnut
+  20: Gbegiri
+  21: Iyan
+  22: Jollof rice
+  23: Moi Moi
+  24: Nkwobi
+  25: Ofe Oha
+  26: Ofe Owerri
+  27: Ogbono soup
+  28: Ogi
+  29: Ogi and Akara
+  30: Okra soup
+  31: Onion
+  32: Plantain
+  33: Rice
+  34: Shrimp
+  35: Snail
+  36: Spaghetti
+  37: Stew
+  38: Stockfish
+  39: Tomato
+  40: Tripe
