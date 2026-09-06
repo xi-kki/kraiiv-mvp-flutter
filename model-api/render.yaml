@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: kraiiv-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+    healthCheckPath: /health
+    autoDeploy: true
