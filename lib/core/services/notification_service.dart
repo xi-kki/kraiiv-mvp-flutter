@@ -1,3 +1,4 @@
+import 'data_service.dart';
 import 'notification_platform_stub.dart'
     if (dart.library.js_interop) 'notification_platform_web.dart'
     if (dart.library.io) 'notification_platform_mobile.dart' as platform;
@@ -18,6 +19,17 @@ class NotificationService {
   static Future<bool> enableDailyNudges() =>
       platform.NotificationServicePlatform.enableDailyNudges();
 
+  static Future<bool> requestPermission() => enableDailyNudges();
+
+  static Future<void> setEnabled(bool enabled) async {
+    await DataService.setNotificationsEnabled(enabled);
+    if (enabled) {
+      await enableDailyNudges();
+    } else {
+      await cancelAll();
+    }
+  }
+
   static Future<void> scheduleDailyReminder({
     required int hour,
     required String message,
@@ -26,6 +38,9 @@ class NotificationService {
         hour: hour,
         message: message,
       );
+
+  static Future<void> scheduleDailyCheckIn() =>
+      enableDailyNudges();
 
   static Future<void> scheduleStandardReminders() =>
       platform.NotificationServicePlatform.scheduleStandardReminders();

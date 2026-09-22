@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+
 import '../../../core/services/data_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/prototype_widgets.dart';
 
 /// "Your Progress" detail — reached from the home progress card.
 class ProgressDetailScreen extends StatefulWidget {
@@ -20,258 +23,454 @@ class _ProgressDetailScreenState extends State<ProgressDetailScreen> {
     final total = completed.length;
     final weekly = DataService.weeklyMealCounts;
     final completion = (DataService.weeklyCompletionRate * 100).round();
+
     final labels = List.generate(7, (i) {
-      final date = DateTime.now().subtract(Duration(days: 6 - i));
-      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-      return days[date.weekday - 1];
+      final day = DateTime.now().subtract(Duration(days: 6 - i));
+      const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return names[day.weekday - 1];
     });
     final maxCount = weekly.fold<int>(1, (a, b) => a > b ? a : b);
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
+        backgroundColor: AppTheme.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         leading: IconButton(
           onPressed: () => context.pop(),
-          icon: const Icon(LucideIcons.arrowLeft),
+          icon: Icon(LucideIcons.arrowLeft, color: AppTheme.foreground),
         ),
-        title: const Text('Your Progress'),
+        title: Text(
+          'Your Progress',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.foreground,
+          ),
+        ),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
           children: [
             // Today ring
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: AppTheme.border),
-              ),
+            PrototypeCard(
+              padding: const EdgeInsets.all(24),
+              elevated: true,
               child: Row(
                 children: [
                   SizedBox(
-                    width: 84,
-                    height: 84,
+                    width: 72,
+                    height: 72,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        CircularProgressIndicator(
-                          value: total == 0 ? 0 : done / total,
-                          strokeWidth: 8,
+                        PrototypeCircularProgress(
+                          value: total == 0 ? 0.0 : done / total,
+                          strokeWidth: 7,
+                          size: 72,
+                          color: AppTheme.primary,
                           backgroundColor: AppTheme.border,
-                          color: AppTheme.primaryGreen,
                         ),
-                        Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              '$done/$total',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                color: AppTheme.textDark,
-                              ),
-                            ),
-                            const Text(
-                              'goals',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.textMuted,
-                              ),
-                            ),
-                          ],
+                        Text(
+                          '$done/$total',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.foreground,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 18),
+                  const SizedBox(width: 20),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Today's progress",
-                          style: TextStyle(
-                            fontSize: 16,
+                        Text(
+                          'Today\'s Progress',
+                          style: GoogleFonts.playfairDisplay(
+                            fontSize: 20,
                             fontWeight: FontWeight.w700,
-                            color: AppTheme.textDark,
+                            color: AppTheme.foreground,
                           ),
                         ),
-                        const SizedBox(height: 6),
+                        const SizedBox(height: 4),
                         Text(
-                          done == total
-                              ? 'All goals complete — amazing!'
-                              : '$done of $total daily goals done. '
-                                  'Keep the momentum going!',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            height: 1.4,
-                            color: AppTheme.textMuted,
+                          'Keep going — small steps count',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            color: AppTheme.mutedForeground,
                           ),
                         ),
                       ],
                     ),
                   ),
+                  PrototypeProgress(
+                    value: total == 0 ? 0.0 : done / total,
+                    height: 8,
+                    color: AppTheme.primary,
+                    backgroundColor: AppTheme.border,
+                  ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
+            const SizedBox(height: 28),
+
+            // Weekly Progress
+            Text(
               'Weekly Progress',
-              style: TextStyle(
-                fontSize: 18,
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 20,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textDark,
+                color: AppTheme.foreground,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text(
-              'completion rate: $completion% of days',
-              style: const TextStyle(
+              'Completion rate: $completion% of days',
+              style: GoogleFonts.inter(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppTheme.textMuted,
+                color: AppTheme.mutedForeground,
               ),
             ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.fromLTRB(12, 18, 12, 12),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.border),
-              ),
+            const SizedBox(height: 16),
+            PrototypeCard(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
+              elevated: true,
               child: Column(
                 children: [
-                  SizedBox(
-                    height: 140,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: List.generate(7, (i) {
-                        final count = weekly[i];
-                        final height = count == 0
-                            ? 6.0
-                            : 10.0 + (count / maxCount) * 110.0;
-                        return Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: List.generate(7, (i) {
+                      final count = weekly[i];
+                      final height = count == 0
+                          ? 6.0
+                          : 10.0 + (count / maxCount) * 60.0;
+                      final day = DateTime.now().subtract(Duration(days: 6 - i));
+                      return Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4),
+                          child: InkWell(
+                            onTap: () => _showDayDetails(day),
+                            borderRadius: BorderRadius.circular(4),
                             child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
                               children: [
                                 if (count > 0)
-                                  Text(
-                                    '$count',
-                                    style: const TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppTheme.primaryGreenDark,
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Text(
+                                      '$count',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.primary,
+                                      ),
                                     ),
                                   ),
-                                const SizedBox(height: 4),
                                 Container(
                                   height: height,
                                   decoration: BoxDecoration(
                                     color: count > 0
-                                        ? AppTheme.primaryGreen
+                                        ? AppTheme.primary
                                         : AppTheme.border,
-                                    borderRadius: BorderRadius.circular(4),
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  labels[i],
+                                  style: GoogleFonts.inter(
+                                    fontSize: 11,
+                                    color: AppTheme.mutedForeground,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${day.day}',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    color: AppTheme.mutedForeground.withValues(alpha: 0.7),
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        );
-                      }),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: labels
-                        .map((l) => Expanded(
-                              child: Center(
-                                child: Text(
-                                  l,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppTheme.textMuted,
-                                  ),
-                                ),
-                              ),
-                            ))
-                        .toList(),
+                        ),
+                      );
+                    }),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            const Row(
+            const SizedBox(height: 32),
+
+            // Daily Goals History
+            Row(
               children: [
-                Icon(LucideIcons.flame, color: AppTheme.orange, size: 20),
-                SizedBox(width: 8),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppTheme.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(LucideIcons.flame, color: AppTheme.orange, size: 20),
+                ),
+                const SizedBox(width: 12),
                 Text(
-                  "Today's Goals",
-                  style: TextStyle(
-                    fontSize: 18,
+                  'Daily Goals History',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: AppTheme.textDark,
+                    color: AppTheme.foreground,
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
             ...List.generate(DataService.dailyGoals.length, (i) {
-              final goal = DataService.dailyGoals[i];
-              final isDone = completed[i];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-                decoration: BoxDecoration(
-                  color: isDone ? AppTheme.surface : Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color:
-                        isDone ? AppTheme.primaryGreen : AppTheme.border,
-                    width: isDone ? 1.5 : 1,
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    isDone
-                        ? const Icon(LucideIcons.checkCircle,
-                            color: AppTheme.primaryGreen, size: 22)
-                        : const Icon(LucideIcons.circle,
-                            color: AppTheme.textMuted, size: 22),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        goal['title'] as String,
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: isDone
-                              ? AppTheme.textMuted
-                              : AppTheme.textDark,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: PrototypeCard(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppTheme.orange.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Icon(LucideIcons.target, color: AppTheme.orange, size: 20),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              DataService.dailyGoals[i]['title'] as String,
+                              style: GoogleFonts.inter(
+                                fontSize: 14.5,
+                                fontWeight: FontWeight.w600,
+                                color: AppTheme.foreground,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Daily goal with KTC reward',
+                              style: GoogleFonts.inter(
+                                fontSize: 12.5,
+                                color: AppTheme.mutedForeground,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                    Text(
-                      '+${goal['reward']}',
-                      style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w800,
-                        color: isDone
-                            ? AppTheme.primaryGreen
-                            : AppTheme.textMuted,
+                      Text(
+                        '+${DataService.dailyGoals[i]['reward']}',
+                        style: GoogleFonts.playfairDisplay(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.orange,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               );
             }),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showDayDetails(DateTime day) {
+    final meals = DataService.mealsOn(day);
+    final miniGoals = DataService.miniGoalsDoneOn(day);
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppTheme.background,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(LucideIcons.calendarDays, color: AppTheme.primary, size: 22),
+                  ),
+                  const SizedBox(width: 14),
+                  Text(
+                    _dayLabel(day),
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.foreground,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Meals (${meals.length})',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (meals.isEmpty)
+                PrototypeEmptyState(
+                  icon: LucideIcons.utensils,
+                  title: 'No meals logged',
+                  subtitle: 'Tap the scanner to log your first meal',
+                )
+              else
+                ...meals.map(
+                  (m) => _DayDetailRow(
+                    icon: LucideIcons.utensils,
+                    iconColor: AppTheme.primary,
+                    title: m['name'] as String,
+                    subtitle: '${m['healthScore']}/10 health score',
+                    trailing: Text(
+                      '${m['healthScore']}/10',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.primaryDark,
+                      ),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              Text(
+                'Mini Goals (${miniGoals.length})',
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.mutedForeground,
+                ),
+              ),
+              const SizedBox(height: 10),
+              if (miniGoals.isEmpty)
+                PrototypeEmptyState(
+                  icon: LucideIcons.listChecks,
+                  title: 'No mini goals completed',
+                  subtitle: 'Complete small actions to earn KTC',
+                )
+              else
+                ...miniGoals.map(
+                  (g) => _DayDetailRow(
+                    icon: LucideIcons.checkCircle,
+                    iconColor: AppTheme.primary,
+                    title: g.title,
+                    subtitle: 'Completed',
+                    trailing: Text(
+                      '+${g.points}',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.gold,
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _dayLabel(DateTime day) {
+    const weekdayNames = [
+      'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday',
+    ];
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return '${weekdayNames[day.weekday - 1]}, ${day.day} ${months[day.month - 1]}';
+  }
+}
+
+class _DayDetailRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final Widget trailing;
+
+  const _DayDetailRow({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 16),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.foreground,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 11.5,
+                    color: AppTheme.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          trailing,
+        ],
       ),
     );
   }

@@ -1,13 +1,17 @@
 import 'dart:async';
+import 'dart:io' show File;
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+
 import '../../../core/services/data_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/prototype_widgets.dart';
 import '../../../data/repository/food_repository.dart';
-
 /// Scan result screen matching the prototype:
 /// food name → calories/protein → Klia insight → log meal.
 class ScanResultScreen extends StatefulWidget {
@@ -40,8 +44,11 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
-    )..forward();
-    _fadeSlide = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    );
+    _fadeSlide = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+    _controller.forward();
   }
 
   @override
@@ -51,60 +58,69 @@ class _ScanResultScreenState extends State<ScanResultScreen>
   }
 
   Future<void> _logMeal() async {
-    if (_saving) return;
     setState(() => _saving = true);
 
-    await DataService.addMeal(
+    final result = await DataService.addMeal(
       name: widget.food.name,
-      category: widget.food.category,
+      category: 'Scanned',
       healthScore: widget.food.healthScore,
-      feedback: widget.food.feedbackTemplate,
+      feedback: 'Logged from scan',
       calories: widget.food.calories,
       protein: widget.food.protein,
       isLocal: widget.food.isLocal,
     );
-    final tickAward = await DataService.recordScanAndTick(isLocal: widget.food.isLocal);
-
     if (!mounted) return;
-    // Primary confirmation
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          backgroundColor: AppTheme.primaryGreen,
-          content: Row(
-            children: [
-              const Icon(LucideIcons.coins, color: Colors.white, size: 18),
-              const SizedBox(width: 10),
-              Text('${widget.food.name} logged! +10 KTC'),
-            ],
-          ),
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    // Auto-tick confirmation (if any daily goal was just completed by this scan)
-    if (tickAward > 0) {
-      await Future<void>.delayed(const Duration(milliseconds: 400));
-      if (!mounted) return;
+    setState(() => _saving = false);
+
+    if (!result.success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: AppTheme.primaryGreenDark,
+          backgroundColor: AppTheme.orange,
           content: Row(
             children: [
-              const Icon(LucideIcons.checkCircle, color: Colors.white, size: 18),
+              const Icon(LucideIcons.alertCircle, color: Colors.white, size: 18),
               const SizedBox(width: 10),
-              Text('Step ticked! +$tickAward KTC — check Home'),
+              Expanded(
+                child: Text(
+                  result.message,
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+                ),
+              ),
             ],
           ),
           behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+          duration: const Duration(seconds: 4),
         ),
       );
+      return;
     }
-    // Small pause so the user sees the confirmation before landing home.
-    await Future<void>.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
+
+    final goalText = result.completedGoals.isNotEmpty
+        ? ' · Auto-completed: ${result.completedGoals.join(', ')}'
+        : '';
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        backgroundColor: AppTheme.primary,
+        content: Row(
+          children: [
+            const Icon(LucideIcons.checkCircle, color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Meal logged! +${result.ktcEarned} KTC$goalText',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+
     context.go('/home');
   }
 
@@ -114,128 +130,151 @@ class _ScanResultScreenState extends State<ScanResultScreen>
     final score = food.healthScore;
 
     return Scaffold(
+      backgroundColor: AppTheme.background,
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
-          children: [
-            Row(
+        child: FadeTransition(
+          opacity: _fadeSlide,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.1),
+              end: Offset.zero,
+            ).animate(_fadeSlide),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
               children: [
-                IconButton(
-                  onPressed: () => context.pop(),
-                  icon: const Icon(LucideIcons.arrowLeft),
-                ),
-                const Spacer(),
-                const Text(
-                  'Scan Result',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.textMuted,
-                  ),
-                ),
-                const Spacer(),
-                const SizedBox(width: 48),
-              ],
-            ),
-            const SizedBox(height: 12),
-            FadeTransition(
-              opacity: _fadeSlide,
-              child: SlideTransition(
-                position: Tween<Offset>(
-                  begin: const Offset(0, 0.08),
-                  end: Offset.zero,
-                ).animate(_fadeSlide),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // Top bar
+                Row(
                   children: [
-                    _buildPhoto(food),
-                    const SizedBox(height: 20),
-                    Text(
-                      food.name,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textDark,
+                    IconButton(
+                      onPressed: () => context.pop(),
+                      icon: Icon(LucideIcons.arrowLeft, color: AppTheme.foreground),
+                      style: IconButton.styleFrom(
+                        backgroundColor: AppTheme.card,
+                        foregroundColor: AppTheme.foreground,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Row(
+                    const Spacer(),
+                    Text(
+                      'Scan Result',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.mutedForeground,
+                      ),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+                const SizedBox(height: 20),
+
+                // Photo
+                _buildPhoto(food),
+                const SizedBox(height: 24),
+
+                // Food name
+                Text(
+                  food.name,
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.foreground,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 8),
+
+                // Local/seasonal badge
+                Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: food.isLocal
+                            ? AppTheme.primary.withValues(alpha: 0.12)
+                            : AppTheme.orange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        food.isLocal ? LucideIcons.leaf : LucideIcons.flame,
+                        color: food.isLocal ? AppTheme.primary : AppTheme.orange,
+                        size: 16,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      food.isLocal ? 'Local & seasonal' : 'Health score $score/10',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: food.isLocal ? AppTheme.primaryDark : AppTheme.orange,
+                      ),
+                    ),
+                  ],
+                ),
+
+                // AI detection badge
+                if (widget.aiLabel != null) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                      border: Border.all(
+                        color: AppTheme.primary.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(LucideIcons.flame,
-                            color: AppTheme.orange, size: 16),
-                        const SizedBox(width: 6),
+                        Icon(LucideIcons.bot, color: AppTheme.primaryDark, size: 16),
+                        const SizedBox(width: 8),
                         Text(
-                          food.isLocal
-                              ? 'Local & seasonal'
-                              : 'Health score $score/10',
-                          style: const TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textMuted,
+                          widget.aiConfidence != null
+                              ? 'Detected by Klia AI (${(widget.aiConfidence! * 100).round()}%)'
+                              : 'Detected by Klia AI',
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryDark,
                           ),
                         ),
                       ],
                     ),
-                    if (widget.aiLabel != null) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.primaryGreen.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(LucideIcons.bot,
-                                color: AppTheme.primaryGreenDark, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              widget.aiConfidence != null
-                                  ? 'Detected by Klia AI '
-                                      '(${(widget.aiConfidence! * 100).round()}%)'
-                                  : 'Detected by Klia AI',
-                              style: const TextStyle(
-                                fontSize: 12.5,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.primaryGreenDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 20),
-                    _buildNutritionCard(food),
-                    const SizedBox(height: 16),
-                    _buildInsightCard(food),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: _saving ? null : _logMeal,
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                color: Colors.white,
-                              ),
-                            )
-                          : const Icon(LucideIcons.checkCircle, size: 20),
-                      label: Text(_saving ? 'Saving...' : 'Log Meal'),
-                    ),
-                    const SizedBox(height: 10),
-                    OutlinedButton.icon(
-                      onPressed: () => context.go('/scanner'),
-                      icon: const Icon(LucideIcons.scanLine, size: 18),
-                      label: const Text('Scan Another'),
-                    ),
-                  ],
+                  ),
+                ],
+
+                const SizedBox(height: 28),
+
+                // Nutrition Card
+                _buildNutritionCard(food),
+                const SizedBox(height: 20),
+
+                // Klia Insight Card
+                _buildInsightCard(food),
+                const SizedBox(height: 32),
+
+                // Log Meal button
+                PrototypeButton(
+                  onPressed: _saving ? null : _logMeal,
+                  loading: _saving,
+                  icon: const Icon(LucideIcons.checkCircle, size: 20),
+                  child: const Text('Log Meal'),
                 ),
-              ),
+                const SizedBox(height: 14),
+
+                // Scan Another button
+                PrototypeButton(
+                  onPressed: () => context.go('/scanner'),
+                  outlined: true,
+                  icon: const Icon(LucideIcons.scanLine, size: 18),
+                  child: const Text('Scan Another'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -243,158 +282,302 @@ class _ScanResultScreenState extends State<ScanResultScreen>
 
   Widget _buildPhoto(FoodItem food) {
     final path = widget.imagePath;
-    final hasImage = path != null && path.isNotEmpty;
+
+    if (path != null && !kIsWeb) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        child: AspectRatio(
+          aspectRatio: 1,
+          child: Image.file(
+            File(path),
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stack) => _photoFallback(food),
+          ),
+        ),
+      );
+    }
+
+    // Use network image or fallback
     return ClipRRect(
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
       child: AspectRatio(
-        aspectRatio: 16 / 9,
-        child: hasImage
-            ? FutureBuilder<Uint8List>(
-                future: XFile(path).readAsBytes(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    return Image.memory(snapshot.data!, fit: BoxFit.cover);
-                  }
-                  return _photoFallback(food);
-                },
-              )
-            : _photoFallback(food),
+        aspectRatio: 1,
+        child: Image.network(
+          food.imageUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stack) => _photoFallback(food),
+        ),
       ),
     );
   }
 
   Widget _photoFallback(FoodItem food) {
     return Container(
-      color: AppTheme.surface,
+      color: AppTheme.sageLight,
       child: Center(
         child: Icon(
-          LucideIcons.utensils,
-          color: AppTheme.primaryGreen.withValues(alpha: 0.5),
-          size: 56,
+          _recipeIcon(food.icon),
+          color: AppTheme.primary,
+          size: 64,
         ),
       ),
     );
   }
 
   Widget _buildNutritionCard(FoodItem food) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppTheme.border),
-      ),
-      child: Row(
-        children: [
-          _nutrient(
-            icon: LucideIcons.flame,
-            label: 'Calories',
-            value: '${food.calories}',
-            unit: 'kcal',
-          ),
-          _divider(),
-          _nutrient(
-            icon: LucideIcons.dumbbell,
-            label: 'Protein',
-            value: food.protein.toStringAsFixed(food.protein % 1 == 0 ? 0 : 1),
-            unit: 'g',
-          ),
-          _divider(),
-          _nutrient(
-            icon: LucideIcons.leaf,
-            label: 'Health',
-            value: '${food.healthScore}',
-            unit: '/10',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _nutrient({
-    required IconData icon,
-    required String label,
-    required String value,
-    required String unit,
-  }) {
-    return Expanded(
+    return PrototypeCard(
+      padding: const EdgeInsets.all(20),
+      elevated: true,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppTheme.primaryGreen, size: 20),
-          const SizedBox(height: 6),
-          Text(
-            '$value $unit',
-            style: const TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.w800,
-              color: AppTheme.textDark,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(LucideIcons.leaf, color: AppTheme.primary, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Nutrition per serving',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.foreground,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 12, color: AppTheme.textMuted),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: _NutrientItem(
+                icon: LucideIcons.flame,
+                iconColor: AppTheme.orange,
+                label: 'Calories',
+                value: '${food.calories}',
+                unit: 'kcal',
+              )),
+              _verticalDivider(),
+              Expanded(child: _NutrientItem(
+                icon: LucideIcons.dumbbell,
+                iconColor: AppTheme.primary,
+                label: 'Protein',
+                value: '${food.protein.toStringAsFixed(1)}',
+                unit: 'g',
+              )),
+              _verticalDivider(),
+              Expanded(child: _NutrientItem(
+                icon: LucideIcons.wheat,
+                iconColor: AppTheme.gold,
+                label: 'Carbs',
+                value: '${food.carbs.toStringAsFixed(1)}',
+                unit: 'g',
+              )),
+              _verticalDivider(),
+              Expanded(child: _NutrientItem(
+                icon: LucideIcons.droplet,
+                iconColor: AppTheme.blue,
+                label: 'Fat',
+                value: '${food.fat.toStringAsFixed(1)}',
+                unit: 'g',
+              )),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _divider() {
-    return Container(width: 1, height: 44, color: AppTheme.border);
+  Widget _verticalDivider() {
+    return Container(
+      width: 1,
+      height: 50,
+      color: AppTheme.border,
+    );
   }
 
   Widget _buildInsightCard(FoodItem food) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.primaryGreen.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppTheme.primaryGreen.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Row(
+    return PrototypeCard(
+      padding: const EdgeInsets.all(20),
+      borderColor: AppTheme.gold.withValues(alpha: 0.3),
+      elevated: true,
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: const BoxDecoration(
-              color: AppTheme.primaryGreen,
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(LucideIcons.leaf, color: Colors.white, size: 18),
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppTheme.gold.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(LucideIcons.brain, color: AppTheme.gold, size: 18),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Klia\'s Insight',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.foreground,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppTheme.gold.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+              border: Border.all(color: AppTheme.gold.withValues(alpha: 0.2)),
+            ),
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  "Klia's insight",
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppTheme.primaryGreenDark,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  food.insight.isEmpty
-                      ? food.feedbackTemplate
-                      : food.insight,
-                  style: const TextStyle(
-                    fontSize: 14.5,
-                    height: 1.5,
-                    color: AppTheme.textDark,
+                Icon(LucideIcons.lightbulb, color: AppTheme.gold, size: 20),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    food.kiaInsight,
+                    style: GoogleFonts.inter(
+                      fontSize: 14.5,
+                      height: 1.6,
+                      color: AppTheme.foreground,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+          if (food.isLocal) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppTheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                border: Border.all(color: AppTheme.primary.withValues(alpha: 0.2)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(LucideIcons.leaf, color: AppTheme.primary, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Locally Sourced',
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryDark,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'This ingredient is in season and available at nearby markets. Eating local supports farmers and reduces carbon footprint.',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            height: 1.5,
+                            color: AppTheme.mutedForeground,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
+    );
+  }
+
+  IconData _recipeIcon(String name) {
+    switch (name) {
+      case 'salad':
+        return LucideIcons.salad;
+      case 'egg':
+        return LucideIcons.egg;
+      default:
+        return LucideIcons.apple;
+    }
+  }
+}
+
+/// Nutrient item for nutrition card
+class _NutrientItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final String unit;
+
+  const _NutrientItem({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.unit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: iconColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: iconColor, size: 18),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          label,
+          style: GoogleFonts.inter(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+            color: AppTheme.mutedForeground,
+          ),
+        ),
+        const SizedBox(height: 4),
+        RichText(
+          text: TextSpan(
+            style: GoogleFonts.inter(
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+              color: AppTheme.foreground,
+            ),
+            children: [
+              TextSpan(text: value),
+              TextSpan(
+                text: unit,
+                style: GoogleFonts.inter(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.mutedForeground,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

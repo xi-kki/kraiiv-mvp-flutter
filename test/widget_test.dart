@@ -80,9 +80,12 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
 
-    // Bottom bar is present with all four tabs.
-    expect(find.byType(NavigationBar), findsOneWidget);
-    expect(find.byType(NavigationDestination), findsNWidgets(4));
+    // Bottom bar is present with all five prototype tabs.
+    expect(find.text('House'), findsOneWidget);
+    expect(find.text('Scan'), findsOneWidget);
+    expect(find.text('Rewards'), findsOneWidget);
+    expect(find.text('Chat'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
 
     // Rewards tab.
     await tester.tap(find.text('Rewards'));
@@ -99,8 +102,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('My Profile'), findsOneWidget);
 
-    // Back to Home.
-    await tester.tap(find.text('Home'));
+    // Back to House.
+    await tester.tap(find.text('House'));
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.textContaining('Xi-kki!'), findsOneWidget);
   });

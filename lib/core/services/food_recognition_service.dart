@@ -101,4 +101,7 @@ class FoodRecognitionService {
       return [];
     }
   }
+
+  /// Alias for detect to match scanner UI calls
+  static Future<List<DetectedFood>> analyze(XFile photo) => detect(photo);
 }

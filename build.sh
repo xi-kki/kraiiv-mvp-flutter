@@ -36,11 +36,39 @@ fi
 flutter config --no-analytics >/dev/null 2>&1 || true
 flutter --version
 flutter pub get
+DEFINES=""
 if [ -n "$KRAIIV_API_URL" ]; then
-  echo "==> Building with KRAIIV_API_URL=$KRAIIV_API_URL"
-  flutter build web --release --dart-define=KRAIIV_API_URL="$KRAIIV_API_URL"
-else
-  echo "==> Building without API URL (offline matcher + keyword chat)"
-  flutter build web --release
+  echo "==> Building with KRAIIV_API_URL"
+  DEFINES="$DEFINES --dart-define=KRAIIV_API_URL=$KRAIIV_API_URL"
 fi
+if [ -n "$STITCH_API_KEY" ]; then
+  echo "==> Building with STITCH_API_KEY"
+  DEFINES="$DEFINES --dart-define=STITCH_API_KEY=$STITCH_API_KEY"
+fi
+if [ -n "$ZBD_API_KEY" ]; then
+  echo "==> Building with ZBD_API_KEY"
+  DEFINES="$DEFINES --dart-define=ZBD_API_KEY=$ZBD_API_KEY"
+fi
+if [ -n "$BLINK_API_KEY" ]; then
+  echo "==> Building with BLINK_API_KEY"
+  DEFINES="$DEFINES --dart-define=BLINK_API_KEY=$BLINK_API_KEY"
+fi
+if [ -n "$BLINK_BTC_WALLET_ID" ]; then
+  echo "==> Building with BLINK_BTC_WALLET_ID"
+  DEFINES="$DEFINES --dart-define=BLINK_BTC_WALLET_ID=$BLINK_BTC_WALLET_ID"
+fi
+if [ -n "$BLINK_USD_WALLET_ID" ]; then
+  echo "==> Building with BLINK_USD_WALLET_ID"
+  DEFINES="$DEFINES --dart-define=BLINK_USD_WALLET_ID=$BLINK_USD_WALLET_ID"
+fi
+if [ -n "$VTPASS_API_KEY" ]; then
+  echo "==> Building with VTPASS_API_KEY"
+  DEFINES="$DEFINES --dart-define=VTPASS_API_KEY=$VTPASS_API_KEY"
+fi
+if [ -n "$BITREFILL_API_KEY" ]; then
+  echo "==> Building with BITREFILL_API_KEY"
+  DEFINES="$DEFINES --dart-define=BITREFILL_API_KEY=$BITREFILL_API_KEY"
+fi
+
+flutter build web --release $DEFINES
 echo "==> Build complete: build/web"

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
+
 import '../../../core/services/data_service.dart';
 import '../../../core/services/klia_chat_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/prototype_widgets.dart';
 
 /// Chat with Klia matching the prototype:
 /// "Ask Klia about nutrition..." with warm, keyword-based answers.
@@ -23,20 +26,10 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
   @override
   void initState() {
     super.initState();
-    _messages.addAll([
-      const _Message(
-        text:
-            'Hi, I\'m Klia. I\'ll help you make the path to achieving your '
-            'health goals clear.',
-        fromKlia: true,
-      ),
-      const _Message(
-        text:
-            'You can ask me about nutrition, local foods, or how to maintain '
-            'mindful eating habits.',
-        fromKlia: true,
-      ),
-    ]);
+    _messages.add(_Message(
+      content: 'Hey! I\'m Klia, your nutrition coach. Ask me anything about food, health goals, or local ingredients!',
+      fromKlia: true,
+    ));
   }
 
   @override
@@ -45,35 +38,31 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
     _scrollController.dispose();
     super.dispose();
   }
+
   Future<void> _send() async {
     final text = _controller.text.trim();
     if (text.isEmpty || _awaiting) return;
 
+    _controller.clear();
     setState(() {
-      _messages.add(_Message(text: text, fromKlia: false));
-      _controller.clear();
+      _messages.add(_Message(content: text, fromKlia: false));
       _awaiting = true;
     });
     _scrollToBottom();
 
-    final reply = await KliaChatService.ask(_recentContext(), text);
+    final reply = await KliaChatService.reply(text, _recentContext());
     if (!mounted) return;
+
     setState(() {
-      _messages.add(_Message(text: reply ?? _replyTo(text), fromKlia: true));
+      _messages.add(_Message(content: reply, fromKlia: true));
       _awaiting = false;
     });
     _scrollToBottom();
   }
 
-  /// Last 4 exchanges (8 messages) as [role, content] pairs for context.
   List<Map<String, String>> _recentContext() {
-    final recent = _messages.length <= 8
-        ? _messages
-        : _messages.sublist(_messages.length - 8);
-    return [
-      for (final m in recent)
-        {'role': m.fromKlia ? 'assistant' : 'user', 'content': m.text},
-    ];
+    final relevant = _messages.skip(_messages.length > 8 ? _messages.length - 8 : 0).toList();
+    return relevant.map((m) => {'role': m.fromKlia ? 'assistant' : 'user', 'content': m.content}).toList();
   }
 
   void _scrollToBottom() {
@@ -82,100 +71,63 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
           duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOut,
+          curve: Curves.easeOutCubic,
         );
       }
     });
   }
 
   String _replyTo(String question) {
-    final q = question.toLowerCase();
-    final name = DataService.userName.split(' ').first;
-
-    if (q.contains('protein')) {
-      return 'Great question, $name! Protein can come from legumes and animal '
-          'sources — beans, egusi, moi moi, eggs, fish and chicken. Aim for a '
-          'palm-sized portion at most meals.';
-    }
-    if (q.contains('calorie') || q.contains('calories') || q.contains('weight')) {
-      return 'For steady energy, focus on balanced plates: carbs, protein and '
-          'vegetables together. Scan your meals and I\'ll show you the '
-          'calories plus a healthier swap.';
-    }
-    if (q.contains('fiber') || q.contains('fibre') || q.contains('digest')) {
-      return 'Fibre is your friend! Beans, vegetables, fruit and wholegrains '
-          'like ofada rice keep you full and your digestion happy.';
-    }
-    if (q.contains('water') || q.contains('hydrat') || q.contains('drink')) {
-      return 'Hydration matters as much as food. Start each day with a glass '
-          'of water, and sip through the day — zobo counts too, just watch '
-          'the sugar!';
-    }
-    if (q.contains('local') || q.contains('seasonal') || q.contains('market')) {
-      return 'Eating local is a win-win: fresher food, lower cost and support '
-          'for farmers near you. Check the Local & Seasonal Ideas on your '
-          'home screen!';
-    }
-    if (q.contains('mindful') || q.contains('distraction')) {
-      return 'Mindful eating is simple: no phone, small bites, and notice the '
-          'taste. One distraction-free meal a day is a great place to start.';
-    }
-    if (q.contains('sugar') || q.contains('sweet') || q.contains('snack')) {
-      return 'Craving something sweet? Try fruit or a small handful of '
-          'groundnuts. If it\'s a real treat moment, enjoy it fully and '
-          'mindfully — no guilt.';
-    }
-    if (q.contains('vegetable') || q.contains('greens')) {
-      return 'Vegetables are where the vitamins live! Try ugwu, ewedu, okra '
-          'or a fresh salad — and aim for colour on every plate.';
-    }
-    if (q.contains('streak') || q.contains('ktc') || q.contains('token')) {
-      return 'Your streak keeps your KTC growing! Log meals and complete '
-          'daily goals to earn more tokens — rewards are waiting in the '
-          'Rewards Hub.';
-    }
-    if (q.contains('hello') || q.contains('hi ') || q == 'hi' || q.contains('hey')) {
-      return 'Hello $name! Lovely to hear from you. Ask me about nutrition, '
-          'local foods, or mindful eating — I\'m here for you.';
-    }
-    return 'That\'s a great question, $name! I can help with nutrition, local '
-        'foods and mindful eating habits — try asking me about protein, '
-        'calories, or eating seasonally.';
+    return KliaChatService.replySync(question);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
+        backgroundColor: AppTheme.background,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
         leading: context.canPop()
             ? IconButton(
                 onPressed: () => context.pop(),
-                icon: const Icon(LucideIcons.arrowLeft),
+                icon: Icon(LucideIcons.arrowLeft, color: AppTheme.foreground),
               )
             : null,
         titleSpacing: 0,
         title: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
-              decoration: const BoxDecoration(
-                color: AppTheme.primaryGreen,
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppTheme.primary, AppTheme.primaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.leaf,
-                  color: Colors.white, size: 17),
+              child: const Icon(LucideIcons.leaf, color: Colors.white, size: 18),
             ),
-            const SizedBox(width: 10),
-            const Column(
+            const SizedBox(width: 12),
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Klia', style: TextStyle(fontSize: 16)),
+                Text(
+                  'Klia',
+                  style: GoogleFonts.playfairDisplay(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.foreground,
+                  ),
+                ),
                 Text(
                   'Your AI nutrition coach',
-                  style: TextStyle(
+                  style: GoogleFonts.inter(
                     fontSize: 11.5,
-                    color: AppTheme.textMuted,
+                    color: AppTheme.mutedForeground,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -208,134 +160,248 @@ class _KliaChatScreenState extends State<KliaChatScreen> {
   }
 
   Widget _buildBubble(_Message message) {
-    if (message.fromKlia) {
-      return Align(
-        alignment: Alignment.centerLeft,
-        child: Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(14),
-          constraints: const BoxConstraints(maxWidth: 320),
-          decoration: BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: const BorderRadius.only(
-              topLeft: Radius.circular(4),
-              topRight: Radius.circular(18),
-              bottomLeft: Radius.circular(18),
-              bottomRight: Radius.circular(18),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: message.fromKlia
+            ? MainAxisAlignment.start
+            : MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (message.fromKlia) ...[
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppTheme.primary, AppTheme.primaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(LucideIcons.leaf, color: Colors.white, size: 16),
             ),
-            border: Border.all(color: AppTheme.border),
-          ),
-          child: Text(
-            message.text,
-            style: const TextStyle(
-              fontSize: 14.5,
-              height: 1.5,
-              color: AppTheme.textDark,
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: message.fromKlia ? AppTheme.card : AppTheme.primary,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(message.fromKlia ? 4 : AppTheme.radiusXl),
+                  topRight: Radius.circular(message.fromKlia ? AppTheme.radiusXl : 4),
+                  bottomLeft: Radius.circular(AppTheme.radiusXl),
+                  bottomRight: Radius.circular(AppTheme.radiusXl),
+                ),
+                border: message.fromKlia
+                    ? Border.all(color: AppTheme.border)
+                    : null,
+              ),
+              child: Text(
+                message.content,
+                style: GoogleFonts.inter(
+                  fontSize: 14.5,
+                  height: 1.55,
+                  color: message.fromKlia ? AppTheme.foreground : Colors.white,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ),
-        ),
-      );
-    }
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        constraints: const BoxConstraints(maxWidth: 320),
-        decoration: const BoxDecoration(
-          color: AppTheme.primaryGreen,
-          borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(18),
-            topRight: Radius.circular(4),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
-          ),
-        ),
-        child: Text(
-          message.text,
-          style: const TextStyle(
-            fontSize: 14.5,
-            height: 1.5,
-            color: Colors.white,
-          ),
-        ),
+          if (!message.fromKlia) ...[
+            const SizedBox(width: 8),
+            CircleAvatar(
+              radius: 16,
+              backgroundColor: AppTheme.gold,
+              child: Text(
+                DataService.userName.isNotEmpty
+                    ? DataService.userName.trim()[0].toUpperCase()
+                    : 'U',
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
   Widget _buildTypingBubble() {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(4),
-            topRight: Radius.circular(18),
-            bottomLeft: Radius.circular(18),
-            bottomRight: Radius.circular(18),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppTheme.primary, AppTheme.primaryDark],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.leaf, color: Colors.white, size: 16),
           ),
-          border: Border.all(color: AppTheme.border),
-        ),
-        child: const Text(
-          'Klia is typing…',
-          style: TextStyle(
-            fontSize: 14.5,
-            color: AppTheme.textMuted,
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.card,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(4),
+                topRight: Radius.circular(AppTheme.radiusXl),
+                bottomLeft: Radius.circular(AppTheme.radiusXl),
+                bottomRight: Radius.circular(AppTheme.radiusXl),
+              ),
+              border: Border.all(color: AppTheme.border),
+            ),
+            child: _TypingIndicator(),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _buildInputBar() {
     return Container(
-      padding: EdgeInsets.fromLTRB(
-        12,
-        10,
-        12,
-        MediaQuery.of(context).padding.bottom + 12,
-      ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
         border: Border(top: BorderSide(color: AppTheme.border)),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _controller,
-              onSubmitted: (_) => _send(),
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(
-                hintText: 'Ask Klia about nutrition...',
-                filled: true,
-                fillColor: AppTheme.surface,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppTheme.card,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusFull),
+                  border: Border.all(color: AppTheme.border),
+                ),
+                child: TextField(
+                  controller: _controller,
+                  onSubmitted: (_) => _send(),
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    color: AppTheme.foreground,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Ask Klia about nutrition...',
+                    hintStyle: GoogleFonts.inter(
+                      color: AppTheme.mutedForeground,
+                      fontSize: 15,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    prefixIcon: Icon(LucideIcons.messageCircle, color: AppTheme.mutedForeground, size: 20),
+                  ),
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: 10),
-          IconButton.filled(
-            onPressed: _send,
-            style: IconButton.styleFrom(
-              backgroundColor: AppTheme.primaryGreen,
-              foregroundColor: Colors.white,
+            const SizedBox(width: 10),
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [AppTheme.primary, AppTheme.primaryDark],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primary.withValues(alpha: 0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                onPressed: _awaiting ? null : _send,
+                icon: const Icon(LucideIcons.send, color: Colors.white, size: 20),
+                tooltip: 'Send',
+              ),
             ),
-            icon: const Icon(LucideIcons.send, size: 18),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 }
 
+class _TypingIndicator extends StatefulWidget {
+  @override
+  State<_TypingIndicator> createState() => _TypingIndicatorState();
+}
+
+class _TypingIndicatorState extends State<_TypingIndicator>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: List.generate(3, (index) {
+            final delay = index * 0.15;
+            final value = (_controller.value - delay) % 1.0;
+            final opacity = (value * 2).clamp(0.0, 1.0);
+            final scale = (value * 2).clamp(0.0, 1.0);
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Opacity(
+                opacity: opacity,
+                child: Transform.scale(
+                  scale: 0.5 + scale * 0.5,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }),
+        );
+      },
+    );
+  }
+}
+
 class _Message {
-  final String text;
+  final String content;
   final bool fromKlia;
 
-  const _Message({required this.text, required this.fromKlia});
+  _Message({required this.content, required this.fromKlia});
 }

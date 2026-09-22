@@ -1,6 +1,7 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show debugPrint;
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lucide_flutter/lucide_flutter.dart';
 
 class FoodItem {
   final String id;
@@ -44,6 +45,12 @@ class FoodItem {
     final idNum = int.tryParse(id);
     return idNum != null && idNum <= 100;
   }
+
+  String? get imageUrl => null;
+  IconData get icon => LucideIcons.utensils;
+  int get carbs => (calories * 0.55 / 4).round();
+  int get fat => (calories * 0.25 / 9).round();
+  String get kiaInsight => insight.isNotEmpty ? insight : feedbackTemplate;
 }
 
 class FoodRepository {

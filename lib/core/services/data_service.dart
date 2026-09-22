@@ -4,6 +4,22 @@ import 'package:hive/hive.dart';
 
 import '../../core/models/mini_goal.dart';
 
+/// Result returned after logging a meal, containing anti-fraud feedback
+/// and any auto-completed daily goals / KTC earned.
+class MealLogResult {
+  final bool success;
+  final String message;
+  final int ktcEarned;
+  final List<String> completedGoals;
+
+  const MealLogResult({
+    required this.success,
+    required this.message,
+    this.ktcEarned = 0,
+    this.completedGoals = const [],
+  });
+}
+
 /// Central data service managing all persistent state via Hive boxes.
 ///
 /// Boxes:
@@ -32,8 +48,18 @@ class DataService {
       _settings.get('onboarding_complete', defaultValue: false);
   static Future<void> setOnboardingComplete() =>
       _settings.put('onboarding_complete', true);
-
-  // ─── Auth (Log In / Log Out — local mock, no backend) ──────
+  static Future<void> completeOnboarding({
+    required String name,
+    required String dietaryPreference,
+    required String healthGoal,
+    required String location,
+  }) async {
+    await setUserName(name);
+    await setDietaryPreference(dietaryPreference);
+    await setHealthGoal(healthGoal);
+    await setLocation(location);
+    await setOnboardingComplete();
+  }
   /// True when the user has an active session. Onboarding creates the
   /// session; Login restores it; Log Out clears it without wiping profile.
   static bool get isLoggedIn =>
@@ -57,11 +83,22 @@ class DataService {
       _settings.get('health_goal', defaultValue: 'Eat more mindfully');
   static Future<void> setHealthGoal(String value) =>
       _settings.put('health_goal', value);
-
   static String get location =>
       _settings.get('location', defaultValue: '');
   static Future<void> setLocation(String value) =>
       _settings.put('location', value);
+
+  static Future<void> updateProfile({
+    required String name,
+    required String dietaryPreference,
+    required String healthGoal,
+    required String location,
+  }) async {
+    await setUserName(name);
+    await setDietaryPreference(dietaryPreference);
+    await setHealthGoal(healthGoal);
+    await setLocation(location);
+  }
 
   static bool get notificationsEnabled =>
       _settings.get('notifications_enabled', defaultValue: false);
@@ -146,7 +183,17 @@ class DataService {
     );
   }
 
-  static Future<void> addMeal({
+  static bool get loggedLocalMealToday {
+    final today = _today().toIso8601String();
+    return loggedMeals.any((m) {
+      final ts = DateTime.tryParse(m['timestamp'] as String? ?? '');
+      return ts != null &&
+          DateTime(ts.year, ts.month, ts.day).toIso8601String() == today &&
+          m['isLocal'] == true;
+    });
+  }
+
+  static Future<MealLogResult> addMeal({
     required String name,
     required String category,
     required int healthScore,
@@ -155,7 +202,53 @@ class DataService {
     double? protein,
     bool isLocal = false,
   }) async {
+    final now = DateTime.now();
+    final todayIso = _today().toIso8601String();
     final meals = loggedMeals;
+
+    // Edge Case 1: Spam / Cooldown Protection (Minimum 5 minutes between logs)
+    if (meals.isNotEmpty) {
+      final lastTs = DateTime.tryParse(meals.first['timestamp'] as String? ?? '');
+      if (lastTs != null) {
+        final diffMinutes = now.difference(lastTs).inMinutes;
+        if (diffMinutes < 5) {
+          final wait = 5 - diffMinutes;
+          return MealLogResult(
+            success: false,
+            message: 'You just logged a meal! Please wait $wait minute(s) before logging your next meal.',
+          );
+        }
+      }
+    }
+
+    // Edge Case 2: Daily Meal Cap (Max 4 rewarded meals per day: Breakfast, Lunch, Dinner, Snack)
+    final mealsToday = meals.where((m) {
+      final ts = DateTime.tryParse(m['timestamp'] as String? ?? '');
+      return ts != null && DateTime(ts.year, ts.month, ts.day).toIso8601String() == todayIso;
+    }).length;
+
+    if (mealsToday >= 4) {
+      return const MealLogResult(
+        success: false,
+        message: 'Daily meal reward limit reached (4/4 meals). Great job staying consistent today!',
+      );
+    }
+
+    // Edge Case 3: Duplicate Meal Detection (Cannot log the exact same food twice in one day)
+    final alreadyLoggedSame = meals.any((m) {
+      final ts = DateTime.tryParse(m['timestamp'] as String? ?? '');
+      final isSameDay = ts != null && DateTime(ts.year, ts.month, ts.day).toIso8601String() == todayIso;
+      return isSameDay && (m['name'] as String? ?? '').toLowerCase() == name.toLowerCase();
+    });
+
+    if (alreadyLoggedSame) {
+      return MealLogResult(
+        success: false,
+        message: 'You already logged $name today! Vary your meals for balanced nutrition.',
+      );
+    }
+
+    // Record meal
     meals.insert(0, {
       'name': name,
       'category': category,
@@ -164,20 +257,38 @@ class DataService {
       'calories': calories,
       'protein': protein,
       'isLocal': isLocal,
-      'timestamp': DateTime.now().toIso8601String(),
+      'timestamp': now.toIso8601String(),
     });
-    // Keep last 100 meals
-    if (meals.length > 100) {
-      meals.removeRange(100, meals.length);
-    }
+
+    if (meals.length > 100) meals.removeRange(100, meals.length);
     await _meals.put('list', meals);
     await _updateStreak();
 
-    // Base earn: 10 KTC per log, +5 healthy choice bonus, +3 streak bonus.
+    // Base earn: 10 KTC per log, +5 healthy choice bonus, +3 streak bonus
     var earned = 10;
     if (healthScore >= 8) earned += 5;
     if (currentStreak >= 3) earned += 3;
-    await _awardTokens(earned, reason: 'Meal logged');
+    final awarded = await _awardTokens(earned, reason: 'Meal logged: $name');
+
+    // Auto-tick daily goals!
+    final completedGoalsList = <String>[];
+    final autoTickAwarded = await recordScanAndTick(isLocal: isLocal);
+
+    if (isLocal && goalsCompletedToday[0]) {
+      completedGoalsList.add('Log a local and seasonal meal (+15 KTC)');
+    }
+    if (scansToday >= 3 && goalsCompletedToday[3]) {
+      completedGoalsList.add('Scan 3 food items (+25 KTC)');
+    }
+
+    final totalKtc = awarded + autoTickAwarded;
+
+    return MealLogResult(
+      success: true,
+      message: 'Meal logged successfully!',
+      ktcEarned: totalKtc,
+      completedGoals: completedGoalsList,
+    );
   }
 
   // ─── Scan auto-tick (Daily Steps) ────────────────────────────
@@ -312,8 +423,17 @@ class DataService {
 
   static bool get is7DayGoalComplete => currentDay >= 7;
 
-  // ─── KTC Token System ──────────────────────────────────────
+  // ─── KTC Token System & Long-term Economic Sustainability ───
+  /// Maximum KTC a user can earn per 24-hour day to prevent farming/bot drain.
+  static const int maxDailyKtcEarn = 75;
+
   static int get ktcBalance => _tokens.get('balance', defaultValue: 0);
+
+  static int get ktcEarnedToday {
+    final today = _today().toIso8601String();
+    if (_tokens.get('earned_today_date') != today) return 0;
+    return _tokens.get('earned_today_amount', defaultValue: 0) as int;
+  }
 
   static List<Map<String, dynamic>> get tokenHistory {
     final raw = _tokens.get('history', defaultValue: <Map>[]);
@@ -322,18 +442,41 @@ class DataService {
     );
   }
 
-  static Future<void> _awardTokens(int amount, {required String reason}) async {
-    final newBalance = ktcBalance + amount;
+  static Future<int> _awardTokens(int amount, {required String reason}) async {
+    final today = _today().toIso8601String();
+    final storedDate = _tokens.get('earned_today_date');
+    int currentToday;
+
+    if (storedDate != today) {
+      currentToday = 0;
+      await _tokens.put('earned_today_date', today);
+      await _tokens.put('earned_today_amount', 0);
+    } else {
+      currentToday = _tokens.get('earned_today_amount', defaultValue: 0) as int;
+    }
+
+    final availableToday = maxDailyKtcEarn - currentToday;
+    if (availableToday <= 0) {
+      return 0; // Daily cap reached — habits still logged, but no additional minting
+    }
+
+    final granted = amount > availableToday ? availableToday : amount;
+    final newBalance = ktcBalance + granted;
     await _tokens.put('balance', newBalance);
+    await _tokens.put('earned_today_amount', currentToday + granted);
+
+    final lifetime = (_tokens.get('lifetime', defaultValue: 0) as int) + granted;
+    await _tokens.put('lifetime', lifetime);
 
     final history = tokenHistory;
     history.insert(0, {
-      'amount': amount,
+      'amount': granted,
       'reason': reason,
       'timestamp': DateTime.now().toIso8601String(),
     });
     if (history.length > 50) history.removeRange(50, history.length);
     await _tokens.put('history', history);
+    return granted;
   }
 
   // ─── Redemptions ─────────────────────────────────────────
@@ -370,6 +513,50 @@ class DataService {
     if (all.length > 50) all.removeRange(50, all.length);
     await _tokens.put('redemptions', all);
     return record;
+  }
+
+  // ─── Web 2.5 Auth State ────────────────────────────────────
+  static bool get isLoggedInWithGoogle =>
+      _settings.get('auth_google', defaultValue: false);
+  static String get userEmail =>
+      _settings.get('user_email', defaultValue: '');
+  static Future<void> signInWithGoogle({required String email, required String name}) async {
+    await _settings.put('auth_google', true);
+    await _settings.put('user_email', email);
+    if (name.isNotEmpty && userName.isEmpty) {
+      await setUserName(name);
+    }
+  }
+
+  // ─── Profile & Habit Stats ─────────────────────────────────
+  // KTC starts strictly at 0 and grows only as user takes steps / completes goals
+  static int get totalKTC => ktcBalance;
+  static int get lifetimeKTC => _tokens.get('lifetime', defaultValue: 0);
+  static int get streak => currentStreak;
+  static String get joinDate => _settings.get('join_date', defaultValue: 'September 2026');
+  static int get totalMeals => loggedMeals.length;
+
+  static int get hydrationCount => _settings.get('count_hydration', defaultValue: 0);
+  static int get movementCount => _settings.get('count_movement', defaultValue: 0);
+  static int get nutritionCount => loggedMeals.length;
+  static int get mindfulnessCount => mindfulMeals;
+  static int get sleepCount => _settings.get('count_sleep', defaultValue: 0);
+  static int get localCount => localMeals;
+
+  static int get totalMiniGoalsDone => _miniCompletions.length;
+  static int get localMealsCount => localMeals;
+
+  static List<Map<String, dynamic>> get redemptionHistory => redemptions;
+
+  static Future<Map<String, dynamic>?> redeemReward(dynamic a, [int? b, String? c]) async {
+    if (a is Map<String, dynamic>) {
+      final name = a['name'] as String? ?? 'Reward';
+      final cost = (a['cost'] as num?)?.toInt() ?? 100;
+      return redeemKTC(cost: cost, title: name);
+    } else if (a is String && b != null) {
+      return redeemKTC(cost: b, title: a);
+    }
+    return null;
   }
 
   /// Random `KRV-XXXX-XXXX` voucher code, avoiding ambiguous characters.
@@ -543,4 +730,6 @@ class DataService {
     await _tokens.clear();
     await _mini.clear();
   }
+
+  static Future<void> wipeAllData() => resetAll();
 }

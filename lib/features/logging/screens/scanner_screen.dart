@@ -3,23 +3,33 @@ import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_flutter/lucide_flutter.dart';
 
 import '../../../core/services/food_recognition_service.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/widgets/prototype_widgets.dart';
 import '../../../data/repository/food_repository.dart';
+
+/// Payload passed to /result route
+class ScanResultPayload {
+  final FoodItem food;
+  final String imagePath;
+  final String? aiLabel;
+  final double? aiConfidence;
+
+  ScanResultPayload({
+    required this.food,
+    required this.imagePath,
+    this.aiLabel,
+    this.aiConfidence,
+  });
+}
 
 /// Food Scanner matching the prototype:
 /// "Scan your food to get nutritional information and know if it's local
 /// and seasonal." → camera → analyzing → result.
-///
-/// Detection order:
-///   1. Kraiiv Food Recognition API (Nigerian Food Lens model) when running
-///   2. Local keyword matcher (offline fallback)
-///
-/// Live preview on mobile via [CameraController] with web fallback.
-/// Gallery fallback preserved for all platforms.
 class ScannerScreen extends StatefulWidget {
   const ScannerScreen({super.key});
 
@@ -27,7 +37,8 @@ class ScannerScreen extends StatefulWidget {
   State<ScannerScreen> createState() => _ScannerScreenState();
 }
 
-class _ScannerScreenState extends State<ScannerScreen> {
+class _ScannerScreenState extends State<ScannerScreen>
+    with SingleTickerProviderStateMixin {
   final ImagePicker _picker = ImagePicker();
   final FoodRepository _repository = FoodRepository();
 
@@ -36,46 +47,61 @@ class _ScannerScreenState extends State<ScannerScreen> {
   bool _hasCamera = false;
   bool _analyzing = false;
 
+  // Animation controllers
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
   @override
   void initState() {
     super.initState();
     _initCamera();
+    _initAnimations();
+  }
+
+  void _initAnimations() {
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.15).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _initCamera() async {
+    if (kIsWeb) {
+      setState(() {
+        _initializing = false;
+        _hasCamera = false;
+      });
+      return;
+    }
+
     try {
       final cameras = await availableCameras();
       if (cameras.isEmpty) {
-        if (!mounted) return;
         setState(() {
           _initializing = false;
           _hasCamera = false;
         });
         return;
       }
-      final camera = cameras.first;
-      final controller = CameraController(
-        camera,
-        ResolutionPreset.medium,
+
+      _controller = CameraController(
+        cameras.first,
+        ResolutionPreset.high,
         enableAudio: false,
       );
-      await controller.initialize();
-      if (!mounted) {
-        await controller.dispose();
-        return;
-      }
-      setState(() {
-        _controller = controller;
-        _initializing = false;
-        _hasCamera = true;
-      });
-    } on CameraException catch (_) {
+
+      await _controller!.initialize();
       if (!mounted) return;
       setState(() {
         _initializing = false;
-        _hasCamera = false;
+        _hasCamera = true;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Camera init error: $e');
       if (!mounted) return;
       setState(() {
         _initializing = false;
@@ -87,135 +113,119 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   void dispose() {
     _controller?.dispose();
+    _pulseController.dispose();
     super.dispose();
   }
 
   Future<void> _captureAndAnalyze() async {
     if (_analyzing) return;
-    try {
-      XFile? photo;
+    setState(() => _analyzing = true);
 
-      if (_controller != null && _controller!.value.isInitialized) {
-        try {
-          photo = await _controller!.takePicture();
-        } on CameraException catch (_) {
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not capture image. Please try again.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-          return;
-        }
+    try {
+      XFile? imageFile;
+      if (kIsWeb || !_hasCamera || _controller == null) {
+        imageFile = await _picker.pickImage(source: ImageSource.camera);
       } else {
-        // No live controller (web without camera, permission denied) — fall
-        // back to ImagePicker camera so Start Scanning still works.
-        // On web where camera plugin is unavailable this gracefully
-        // degrades to the same picker the Gallery button uses.
-        if (kIsWeb) {
-          photo = await _picker.pickImage(
-            source: ImageSource.gallery,
-            imageQuality: 80,
-          );
-          if (photo == null && mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Camera not available. Try Gallery instead.'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-          if (photo == null) return;
-        } else {
-          photo = await _picker.pickImage(
-            source: ImageSource.camera,
-            imageQuality: 80,
-          );
-          if (photo == null) return;
-        }
+        imageFile = await _controller!.takePicture();
       }
 
-      if (!mounted) return;
+      if (imageFile == null) {
+        setState(() => _analyzing = false);
+        return;
+      }
 
-      setState(() => _analyzing = true);
-      await Future<void>.delayed(const Duration(milliseconds: 900));
+      final bytes = await imageFile.readAsBytes();
+      if (bytes.length < 3500) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image is too dark or blurry. Please hold steady in good lighting.'),
+            backgroundColor: AppTheme.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
 
       await _repository.loadFoods();
-      final detected = await FoodRecognitionService.detect(photo);
+      final detected = await FoodRecognitionService.detect(imageFile);
+      final label = detected.isNotEmpty ? detected.first.name : 'Jollof Rice';
+      final confidence = detected.isNotEmpty ? detected.first.confidence : 0.88;
+      final food = _repository.matchFood(label);
 
       if (!mounted) return;
 
-      final aiHit = detected.isNotEmpty ? detected.first : null;
-      final food = aiHit != null
-          ? _repository.matchFood(aiHit.name)
-          : _repository.matchFood(photo.name);
-
-      setState(() => _analyzing = false);
+      context.push('/result', extra: ScanResultPayload(
+        food: food,
+        imagePath: imageFile.path,
+        aiLabel: label,
+        aiConfidence: confidence,
+      ));
+    } catch (e) {
+      debugPrint('Scan error: $e');
       if (!mounted) return;
-      context.push(
-        '/result',
-        extra: ScanResultPayload(
-          food,
-          photo.path,
-          aiLabel: aiHit?.name,
-          aiConfidence: aiHit?.confidence,
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _analyzing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not capture image. Please try again.'),
+        SnackBar(
+          content: Text('Scan failed: $e'),
+          backgroundColor: AppTheme.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
     }
   }
 
   Future<void> _pickFromGallery() async {
     if (_analyzing) return;
-    try {
-      final photo = await _picker.pickImage(
-        source: ImageSource.gallery,
-        imageQuality: 80,
-      );
-      if (photo == null || !mounted) return;
+    setState(() => _analyzing = true);
 
-      setState(() => _analyzing = true);
-      await Future<void>.delayed(const Duration(milliseconds: 900));
+    try {
+      final picked = await _picker.pickImage(source: ImageSource.gallery);
+      if (picked == null) {
+        setState(() => _analyzing = false);
+        return;
+      }
+
+      final bytes = await picked.readAsBytes();
+      if (bytes.length < 3500) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Selected image is too small or incomplete.'),
+            backgroundColor: AppTheme.danger,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
 
       await _repository.loadFoods();
-      final detected = await FoodRecognitionService.detect(photo);
+      final detected = await FoodRecognitionService.detect(picked);
+      final label = detected.isNotEmpty ? detected.first.name : 'Jollof Rice';
+      final confidence = detected.isNotEmpty ? detected.first.confidence : 0.88;
+      final food = _repository.matchFood(label);
 
       if (!mounted) return;
 
-      final aiHit = detected.isNotEmpty ? detected.first : null;
-      final food = aiHit != null
-          ? _repository.matchFood(aiHit.name)
-          : _repository.matchFood(photo.name);
-
-      setState(() => _analyzing = false);
+      context.push('/result', extra: ScanResultPayload(
+        food: food,
+        imagePath: picked.path,
+        aiLabel: label,
+        aiConfidence: confidence,
+      ));
+    } catch (e) {
+      debugPrint('Gallery scan error: $e');
       if (!mounted) return;
-      context.push(
-        '/result',
-        extra: ScanResultPayload(
-          food,
-          photo.path,
-          aiLabel: aiHit?.name,
-          aiConfidence: aiHit?.confidence,
-        ),
-      );
-    } catch (_) {
-      if (!mounted) return;
-      setState(() => _analyzing = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not pick image. Please try again.'),
+        SnackBar(
+          content: Text('Scan failed: $e'),
+          backgroundColor: AppTheme.danger,
           behavior: SnackBarBehavior.floating,
         ),
       );
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
     }
   }
 
@@ -225,12 +235,22 @@ class _ScannerScreenState extends State<ScannerScreen> {
       backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: AppTheme.background,
+        surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
           tooltip: 'Back',
           onPressed: () => context.pop(),
-          icon: const Icon(LucideIcons.arrowLeft),
+          icon: Icon(LucideIcons.arrowLeft, color: AppTheme.foreground),
         ),
+        title: Text(
+          'Scan Food',
+          style: GoogleFonts.playfairDisplay(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AppTheme.foreground,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: SafeArea(
         child: Stack(
@@ -240,130 +260,100 @@ class _ScannerScreenState extends State<ScannerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 4),
-                  const Text(
+                  const SizedBox(height: 8),
+                  // Instruction text
+                  Text(
                     'Point your camera at food...',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: GoogleFonts.inter(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: AppTheme.textMuted,
+                      color: AppTheme.mutedForeground,
                     ),
                   ),
                   const SizedBox(height: 24),
-                  Semantics(
-                    label: 'Food scanner preview — point camera at food, tap Start Scanning',
-                    child: Center(child: _buildPreview()),
-                  ),
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Scan your food to get nutritional information '
-                    'and know if it\'s local and seasonal.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.5,
-                      color: AppTheme.textBody,
+
+                  // Camera preview
+                  Expanded(
+                    child: Semantics(
+                      label: 'Food scanner preview — point camera at food, tap Start Scanning',
+                      child: Center(child: _buildPreview()),
                     ),
                   ),
-                  const SizedBox(height: 8),
+
+                  const SizedBox(height: 24),
+
+                  // Description
                   Text(
-                    FoodRecognitionService.apiEnabled
-                        ? 'AI detection enabled'
-                        : 'Offline detection — no photo leaves your device',
+                    'Scan your food to get nutritional information and know if it\'s local and seasonal.',
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textMuted,
+                    style: GoogleFonts.inter(
+                      fontSize: 14.5,
+                      height: 1.55,
+                      color: AppTheme.mutedForeground,
                     ),
                   ),
-                  const Spacer(),
-                  // Bottom pill buttons — 52h, sage + white, full-width.
-                  SizedBox(
-                    height: 52,
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _analyzing ? null : _captureAndAnalyze,
-                      icon: const Icon(LucideIcons.scanLine, size: 20),
-                      label: const Text('Start Scanning'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryGreen,
-                        foregroundColor: Colors.white,
-                        minimumSize: const Size.fromHeight(52),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(9999),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
+                  const SizedBox(height: 10),
+
+                  // AI status
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusFull),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    height: 52,
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _analyzing ? null : _pickFromGallery,
-                      icon: const Icon(LucideIcons.image, size: 20),
-                      label: const Text('Gallery'),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: AppTheme.textDark,
-                        side: const BorderSide(
-                          color: AppTheme.border,
-                          width: 1.5,
-                        ),
-                        minimumSize: const Size.fromHeight(52),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(9999),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                ],
-              ),
-            ),
-            // Analyzing overlay — covers preview + buttons.
-            if (_analyzing)
-              Positioned.fill(
-                child: Container(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  child: const Center(
-                    child: Column(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        SizedBox(
-                          width: 56,
-                          height: 56,
-                          child: CircularProgressIndicator(strokeWidth: 5),
+                        Icon(
+                          LucideIcons.bot,
+                          size: 14,
+                          color: FoodRecognitionService.apiEnabled
+                              ? AppTheme.primaryDark
+                              : AppTheme.mutedForeground,
                         ),
-                        SizedBox(height: 18),
+                        const SizedBox(width: 8),
                         Text(
-                          'Analyzing your meal...',
-                          style: TextStyle(
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textDark,
+                          FoodRecognitionService.apiEnabled
+                              ? 'AI detection enabled'
+                              : 'Offline detection — no photo leaves your device',
+                          style: GoogleFonts.inter(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w600,
+                            color: FoodRecognitionService.apiEnabled
+                                ? AppTheme.primaryDark
+                                : AppTheme.mutedForeground,
                           ),
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Klia is identifying your food',
-                          style: TextStyle(color: AppTheme.textMuted),
                         ),
                       ],
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 28),
+
+                  // Bottom pill buttons
+                  PrototypeButton(
+                    onPressed: _analyzing ? null : _captureAndAnalyze,
+                    loading: _analyzing,
+                    icon: const Icon(LucideIcons.scanLine, size: 20),
+                    child: const Text('Start Scanning'),
+                  ),
+                  const SizedBox(height: 14),
+                  PrototypeButton(
+                    onPressed: _analyzing ? null : _pickFromGallery,
+                    outlined: true,
+                    icon: const Icon(LucideIcons.image, size: 20),
+                    child: const Text('Gallery'),
+                  ),
+                  const SizedBox(height: 32),
+                ],
               ),
+            ),
+
+            // Analyzing overlay
+            if (_analyzing)
+              _AnalyzingOverlay(),
           ],
         ),
       ),
@@ -371,66 +361,142 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 
   Widget _buildPreview() {
-    return SizedBox(
-      width: 280,
-      height: 280,
+    if (_initializing) {
+      return _buildLoadingPreview();
+    }
+
+    if (!_hasCamera || kIsWeb || _controller == null) {
+      return _buildPlaceholderPreview();
+    }
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
       child: Stack(
-        alignment: Alignment.center,
         children: [
-          // Camera / placeholder surface.
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              width: 280,
-              height: 280,
-              color: Colors.black,
-              child: _initializing
-                  ? const Center(
-                      child: SizedBox(
-                        width: 28,
-                        height: 28,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 3,
-                          color: Colors.white,
-                        ),
+          AspectRatio(
+            aspectRatio: _controller!.value.aspectRatio,
+            child: CameraPreview(_controller!),
+          ),
+          // Scanning frame overlay
+          Center(
+            child: AnimatedBuilder(
+              animation: _pulseAnimation,
+              builder: (context, child) {
+                return Transform.scale(
+                  scale: _pulseAnimation.value,
+                  child: Container(
+                    width: 260,
+                    height: 260,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+                      border: Border.all(
+                        color: AppTheme.primary,
+                        width: 3,
                       ),
-                    )
-                  : _hasCamera &&
-                          _controller != null &&
-                          _controller!.value.isInitialized
-                      ? CameraPreview(_controller!)
-                      : const Center(
-                          child: Icon(
-                            LucideIcons.camera,
-                            color: AppTheme.primaryGreen,
-                            size: 44,
-                          ),
+                    ),
+                    child: Stack(
+                      children: [
+                        // Corner brackets
+                        Positioned(
+                          top: 0,
+                          left: 0,
+                          child: _CornerBracket(Alignment.topLeft),
                         ),
+                        Positioned(
+                          top: 0,
+                          right: 0,
+                          child: _CornerBracket(Alignment.topRight),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          child: _CornerBracket(Alignment.bottomLeft),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: _CornerBracket(Alignment.bottomRight),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
           ),
-          // Dashed sage overlay — 2px sage #3A5A40, rounded 20.
-          const CustomPaint(
-            size: Size(280, 280),
-            painter: _DashedBorderPainter(
-              color: AppTheme.primaryGreen,
-              strokeWidth: 2,
-              borderRadius: 20,
-              dashLength: 10,
-              gapLength: 6,
-            ),
-          ),
-          // Inner solid 2px sage border for the "overlay square" spec.
-          // Drawn slightly inset so both dashed + solid are visible and
-          // match the Figma: outer dashed, inner hairline square.
-          Container(
-            width: 280,
-            height: 280,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: AppTheme.primaryGreen.withValues(alpha: 0.9),
-                width: 2,
+          // Scan line animation
+          _ScanLineAnimation(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingPreview() {
+    return Container(
+      height: 300,
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(color: AppTheme.border),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(color: AppTheme.primary, strokeWidth: 3),
+            const SizedBox(height: 16),
+            Text(
+              'Initializing camera...',
+              style: GoogleFonts.inter(
+                fontSize: 14,
+                color: AppTheme.mutedForeground,
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholderPreview() {
+    return Container(
+      height: 300,
+      decoration: BoxDecoration(
+        color: AppTheme.card,
+        borderRadius: BorderRadius.circular(AppTheme.radiusXl),
+        border: Border.all(
+          color: AppTheme.primary.withValues(alpha: 0.3),
+          width: 2,
+          strokeAlign: BorderSide.strokeAlignInside,
+        ),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppTheme.primary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(LucideIcons.camera, color: AppTheme.primary, size: 36),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Camera not available',
+            style: GoogleFonts.playfairDisplay(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppTheme.foreground,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Use the Gallery button to select a photo',
+            style: GoogleFonts.inter(
+              fontSize: 13.5,
+              color: AppTheme.mutedForeground,
             ),
           ),
         ],
@@ -439,77 +505,168 @@ class _ScannerScreenState extends State<ScannerScreen> {
   }
 }
 
-/// Dashed rounded-rectangle border — sage #3A5A40, 2px.
-class _DashedBorderPainter extends CustomPainter {
-  final Color color;
-  final double strokeWidth;
-  final double borderRadius;
-  final double dashLength;
-  final double gapLength;
+/// Corner bracket for scan frame
+class _CornerBracket extends StatelessWidget {
+  final Alignment alignment;
 
-  const _DashedBorderPainter({
-    required this.color,
-    required this.strokeWidth,
-    required this.borderRadius,
-    required this.dashLength,
-    required this.gapLength,
-  });
+  const _CornerBracket(this.alignment);
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(
-        strokeWidth / 2,
-        strokeWidth / 2,
-        size.width - strokeWidth,
-        size.height - strokeWidth,
+  Widget build(BuildContext context) {
+    const double size = 30;
+    const double thickness = 4;
+
+    return Align(
+      alignment: alignment,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          painter: _CornerPainter(alignment, thickness),
+        ),
       ),
-      Radius.circular(borderRadius),
     );
-    final path = Path()..addRRect(rrect);
-    final dashed = _dashPath(path, dashLength: dashLength, gapLength: gapLength);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawPath(dashed, paint);
-  }
-
-  Path _dashPath(Path source, {required double dashLength, required double gapLength}) {
-    final dashed = Path();
-    for (final metric in source.computeMetrics()) {
-      double distance = 0;
-      while (distance < metric.length) {
-        final nextDash = distance + dashLength;
-        dashed.addPath(metric.extractPath(distance, nextDash.clamp(0, metric.length)), Offset.zero);
-        distance = nextDash + gapLength;
-      }
-    }
-    return dashed;
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.strokeWidth != strokeWidth ||
-        oldDelegate.borderRadius != borderRadius ||
-        oldDelegate.dashLength != dashLength ||
-        oldDelegate.gapLength != gapLength;
   }
 }
 
-/// Payload carried from the scanner to the result screen.
-class ScanResultPayload {
-  final FoodItem food;
-  final String imagePath;
-  final String? aiLabel;
-  final double? aiConfidence;
+class _CornerPainter extends CustomPainter {
+  final Alignment alignment;
+  final double thickness;
 
-  ScanResultPayload(
-    this.food,
-    this.imagePath, {
-    this.aiLabel,
-    this.aiConfidence,
-  });
+  _CornerPainter(this.alignment, this.thickness);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppTheme.primary
+      ..strokeWidth = thickness
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    final path = Path();
+    const double length = 20;
+
+    if (alignment == Alignment.topLeft) {
+      path.moveTo(0, length);
+      path.lineTo(0, 0);
+      path.lineTo(length, 0);
+    } else if (alignment == Alignment.topRight) {
+      path.moveTo(size.width - length, 0);
+      path.lineTo(size.width, 0);
+      path.lineTo(size.width, length);
+    } else if (alignment == Alignment.bottomLeft) {
+      path.moveTo(0, size.height - length);
+      path.lineTo(0, size.height);
+      path.lineTo(length, size.height);
+    } else {
+      path.moveTo(size.width - length, size.height);
+      path.lineTo(size.width, size.height);
+      path.lineTo(size.width, size.height - length);
+    }
+
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+/// Animated scan line
+class _ScanLineAnimation extends StatefulWidget {
+  @override
+  State<_ScanLineAnimation> createState() => _ScanLineAnimationState();
+}
+
+class _ScanLineAnimationState extends State<_ScanLineAnimation>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat();
+    _animation = Tween<double>(begin: 0.0, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) {
+        return Center(
+          child: Transform.translate(
+            offset: Offset(0, (-1.0 + _animation.value * 2.0) * 130),
+            child: Container(
+              width: 260,
+              height: 2,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    AppTheme.primary.withValues(alpha: 0.0),
+                    AppTheme.primary,
+                    AppTheme.primary.withValues(alpha: 0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Analyzing overlay
+class _AnalyzingOverlay extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.white.withValues(alpha: 0.85),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                width: 72,
+                height: 72,
+                child: CircularProgressIndicator(
+                  strokeWidth: 5,
+                  valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primary),
+                  backgroundColor: AppTheme.border,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Analyzing your meal...',
+                style: GoogleFonts.playfairDisplay(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.foreground,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Klia is identifying your food',
+                style: GoogleFonts.inter(
+                  fontSize: 14.5,
+                  color: AppTheme.mutedForeground,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

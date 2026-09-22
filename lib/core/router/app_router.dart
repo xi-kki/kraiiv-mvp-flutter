@@ -57,8 +57,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
-                path: '/chat',
-                builder: (context, state) => const KliaChatScreen(),
+                path: '/scanner',
+                builder: (context, state) => const ScannerScreen(),
               ),
             ],
           ),
@@ -73,16 +73,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(
+                path: '/chat',
+                builder: (context, state) => const KliaChatScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
                 path: '/profile',
                 builder: (context, state) => const ProfileScreen(),
               ),
             ],
           ),
         ],
-      ),
-      GoRoute(
-        path: '/scanner',
-        builder: (context, state) => const ScannerScreen(),
       ),
       GoRoute(
         path: '/result',
